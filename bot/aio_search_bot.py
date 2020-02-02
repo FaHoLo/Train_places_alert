@@ -18,7 +18,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.errors import HttpError
 
 from aiogram import Bot, Dispatcher, executor, types
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.contrib.fsm_storage.files import PickleStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
@@ -55,11 +55,13 @@ PROCESSING_SPSH_DATA_RANGE = 'A2:C'
 
 # bot settings
 bot = Bot(token=os.environ['TG_BOT_TOKEN'])
-storage = MemoryStorage() # TODO This type of storage is not recommended for usage in bots, because you will lost all states after restarting.
+storage = PickleStorage('state_storage.pickle') # TODO Add pickle backup every 30 sec for tg server
 dispatcher = Dispatcher(bot, storage=storage)
 
 class Form(StatesGroup):
-    typing_url_and_numbers = State()
+    typing_url = State()
+    typing_numbers = State()
+    choosing_limit = State()
     searching = State() 
 
 
@@ -261,11 +263,14 @@ async def send_help(message: types.Message, state: FSMContext):
     text = '''
     ⠀ 1. Нажми /start_search.
     2. Зайди на сайт https://pass.rzd.ru, выбери место отправления, место назначения, дату, убери галку с поля "Только с билетами" и нажми кнопку "Расписание".
-    3. Скопируй ссылку загруженной страницы.
-    4. Выбери номера поездов, на которых хочешь поехать и пришли мне в одном сообщении ссылку на страницу и список поездов (их всех нужно разделить запиятыми и пробелами). Учти номера поездов содержат цифры, РУССКИЕ буквы и значки, например «123*А, 456Е».
+    3. Скопируй ссылку загруженной страницы и отправь её мне в сообщении.
+    4. Выбери номера поездов, на которых хочешь поехать и пришли мне список поездов (их всех нужно разделить запиятыми и пробелами). Учти номера поездов содержат цифры, РУССКИЕ буквы и значки, например «123*А, 456Е».
+    5. Отправь ограничение на стоимость билетов (число без букв, знаков и пробелов). Если цена не важна, отправь 0.
     Важно! Поиск можно прекратить в любой момент, введя команду /cancel
-    Пример твоего сообщения:
-    https://pass.rzd.ru/tickets/public/ru?layer_name=e3-route..., 00032, 002А, Е*100
+    Пример твоих сообщений:
+    https://pass.rzd.ru/tickets/public/ru?STRUCTURE_ID=7...
+    00032, 002А, Е*100
+    2500
     '''
     await message.answer(text)
 
@@ -304,9 +309,8 @@ async def start_search(message: types.Message):
         return
     
     text = '''
-    Ожидаю ссылку на расписание и список поездов (напоминаю, их нужно рзделить запятой и пробелом)
-    Пример:
-    https://pass.rzd.ru/tickets/public/ru?layer_name=e3-route..., 00032, 002А, Е*100
+    Ожидаю ссылку на расписание, пример:
+    https://pass.rzd.ru/tickets/public/ru?layer_name=e3-route...
     '''
     await Form.typing_url_and_numbers.set()
     await message.answer(text)
@@ -317,22 +321,42 @@ async def check_for_existing_search(chat_id):
         if chat_id in search:
             return True
 
-@dispatcher.message_handler(state=Form.typing_url_and_numbers)
-async def get_url_and_numbers(message: types.Message, state: FSMContext):
-    user_request = message.text.split(', ')
-    if len(user_request) < 2:
-        await message.answer('Что-то не так с твоим запросом, мне нужен список из ссылки на поиск и номеров поездов. Попробуй еще раз, не забудь разделить их запятой и пробелом 😉')
-        return
-    url = user_request[0]
-    if 'pass.rzd.ru/tickets/' not in url:
+@dispatcher.message_handler(state=Form.typing_url)
+async def get_url(message: types.Message, state: FSMContext):
+    url = message.text
+    if 'https://pass.rzd.ru/tickets' not in url:
         await message.answer('Что-то не так с твоей ссылкой. обычно она начинается с https://pass.rzd.ru/tickets...\nПопробуй еще раз 😉')
         return
-    train_numbers = ', '.join(user_request[1:])
     chat_id = message.chat.id
-    await update_spreadsheets(url, train_numbers, chat_id)
+    column = 'url'
+    await update_db(chat_id, column, url)
+    text = '''
+    Хорошо, теперь отправь мне номера поездов, на которых ты хочешь поехать. Их нужно разделить запятой и пробелом, например:
+    00032, 002А, Е*100
+    '''
+    await Form.next()
+    await message.answer(text)
+
+@dispatcher.message_handler(state=Form.typing_numbers)
+async def get_numbers(message: types.Message, state: FSMContext):
+    train_numbers = message.text
+    chat_id = message.chat.id
+    column = 'train_numbers'
+    await update_db(chat_id, column, train_numbers)
+    text = 'Отлично, теперь отправь мне ограничение на цену билетов. Числом без запятых и пробелов, например:\n5250\nЕсли цена не важна, отправь 0'
+    await Form.next()
+    await message.answer(text)
+
+@dispatcher.message_handler(state=Form.choosing_limit)
+async def get_limit(message: types.Message, state: FSMContext):
+    price_limit = int(message.text)    chat_id = message.chat.id
+    column = 'price_limit'
+    await update_db(chat_id, column, price_limit)
     text = 'Пойду искать места, если захочешь отменить поиск нажми /cancel'
     await Form.next()
     await message.answer(text)
+
+
 
 async def update_spreadsheets(url, train_numbers, chat_id):
     logging_empty_string = await get_logging_empty_string_number()
