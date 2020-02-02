@@ -88,7 +88,9 @@ def main():
 async def start_searching():
     while True:
         try:
-            search_list = await download_spreadsheet_data(PROCESSING_SPREADSHEET_ID, PROCESSING_SPSH_DATA_RANGE)
+            null_session = db_session()
+            search_list = null_session.query(ActiveSearch).all()
+            null_session.close()
             if not search_list:
                 await asyncio.sleep(10)
                 continue
@@ -97,38 +99,19 @@ async def start_searching():
             hunter_logger.exception('')
         await asyncio.sleep(5)
 
-async def download_spreadsheet_data(spreadsheet_id, data_range):
-    learned_htpp_exceptions = [
-        'The service is currently unavailable',
-        'Internal error encountered',
-    ]
-    try:
-        result = sheet.values().get(spreadsheetId=spreadsheet_id,
-                                    range=data_range).execute()
-    except HttpError as exc:
-        for exception in learned_htpp_exceptions:
-            if exception in exc._get_reason().strip():
-                return
-        raise exc
-    except socket.timeout:
-        return
-    data = result.get('values', [])
-    return data
-
 async def search_places(search_list):
-    for search_string_number, search in enumerate(search_list):
-        if not search:
+    for search in search_list:
+        if not search.price_limit:
             continue
         answer = await check_search(search)
         if answer:
-            await bot.send_message(chat_id=search[2], text=answer)
-            await remove_search_from_spreadsheet_hunter(search_string_number)
+            await bot.send_message(chat_id=search.chat_id, text=answer)
+            await remove_search_from_spreadsheet(search.chat_id)
         await asyncio.sleep(5)
 
 async def check_search(search):
-    url, train_numbers, chat_id = search
-    train_numbers = train_numbers.split(', ')
-    response = await make_rzd_request(url)
+    train_numbers = search.train_numbers.split(', ')
+    response = await make_rzd_request(search.url)
     if not response:
         return
     trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
@@ -139,7 +122,7 @@ async def check_search(search):
     answer = await check_for_wrong_train_numbers(train_numbers, trains_with_places, trains_that_gone, trains_without_places)
     if answer:
         return answer
-    answer = await check_for_places(train_numbers, trains_with_places)
+    answer = await check_for_places(train_numbers, trains_with_places, search.price_limit)
     if answer:
         return answer
     answer = await check_for_all_gone(train_numbers, trains_that_gone)
@@ -173,7 +156,7 @@ async def make_rzd_request(url):
     return data
 
 async def collect_trains(data):
-    if check_for_bad_url(data):
+    if data.find('за пределами периода') != -1:
         return 'Bad url', None, None
 
     soup = BeautifulSoup(data, 'html.parser')
@@ -200,12 +183,9 @@ async def collect_trains(data):
 
     return trains_with_places, trains_that_gone, trains_without_places
 
-def check_for_bad_url(data):
-    if data.find('за пределами периода') != -1:
-        return True
-
 async def check_for_wrong_train_numbers(train_numbers, trains_with_places, trains_that_gone, trains_without_places):
     status = 'Not found'
+    # TODO add itertools.product here instead double breaks and cycles
     for train_number in train_numbers:
         for train in trains_with_places:
             if train_number in train:
@@ -226,14 +206,24 @@ async def check_for_wrong_train_numbers(train_numbers, trains_with_places, train
     if status == 'Not found':
         return 'Неверные номера поездов, не нашел ни одного на эту дату. Прочитай /help и начни новый поиск'
 
-async def check_for_places(train_numbers, trains_with_places):
+async def check_for_places(train_numbers, trains_with_places, price_limit):
     time_pattern = r'route_time\">\d{1,2}:\d{2}'
-    for train in trains_with_places:
+    for train_data in trains_with_places:
         for train_number in train_numbers:
-            if train_number not in train:
+            if train_number not in train_data:
                 continue
-            time = re.search(time_pattern, train)[0][-5:]
-            return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
+            time = re.search(time_pattern, train_data)[0][-5:]
+            if price_limit == 1:
+                return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
+            if check_for_satisfying_price(train_data, price_limit)
+                return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
+
+def check_for_satisfying_price(train_data, price_limit):
+    soup = BeautifulSoup(train_data, 'html.parser')
+    place_prices = soup.find_all('span', {'class': 'route-cartype-price-rub'})
+    # TODO getp prices from spans with regexp in html price "\xa0" is Sgipace
+    # Maby we need change soup parser
+    return True
 
 async def check_for_all_gone(train_numbers, trains_that_gone):
     number_of_tn = len(train_numbers)
@@ -245,15 +235,6 @@ async def check_for_all_gone(train_numbers, trains_that_gone):
             gone_trains.append(train_number)
     if len(gone_trains) == number_of_tn:
         return 'Места не появились, все поезда ушли 😔'
-
-async def remove_search_from_spreadsheet_hunter(string_number):
-    string_number = string_number + 2
-    body = {
-        'ranges': [f'A{string_number}:C{string_number}']
-    }
-    sheet.values().batchClear(spreadsheetId=PROCESSING_SPREADSHEET_ID, 
-        body=body).execute()
-    return
 
 
 # Bot
@@ -301,7 +282,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     if current_state is not None:
         await state.set_state(None)
 
-async def remove_search_from_spreadsheet_bot(chat_id):
+async def remove_search_from_spreadsheet(chat_id):
     session = db_session()
     session.query(ActiveSearch).filter_by(chat_id=chat_id).delete()
     session.commit()
@@ -348,7 +329,7 @@ async def get_numbers(message: types.Message, state: FSMContext):
     chat_id = message.chat.id
     column = 'train_numbers'
     await update_db(chat_id, column, train_numbers)
-    text = 'Отлично, теперь отправь мне ограничение на цену билетов. Целым числом: без копеек, запятых и пробелов, например:\n5250\nЕсли цена не важна, отправь 0'
+    text = 'Отлично, теперь отправь мне ограничение на цену билетов. Целым числом: без копеек, запятых и пробелов, например:\n5250\nЕсли цена не важна, отправь 1'
     await Form.next()
     await message.answer(text)
 
@@ -357,7 +338,7 @@ async def get_limit(message: types.Message, state: FSMContext):
     try:
         price_limit = int(message.text)
     except ValueError:
-        await message.answer('Неверное число. Цена должна быть в виде ОДНОГО целого числа, без лишних знаков препинания, пробелов и т.д. Например:\n1070')
+        await message.answer('Неверное число. Цена должна быть в виде ОДНОГО целого числа, без лишних знаков препинания, пробелов и т.д. Например:\n1070\nОтправь 1, если цена неважна.')
         return
     chat_id = message.chat.id
     column = 'price_limit'
