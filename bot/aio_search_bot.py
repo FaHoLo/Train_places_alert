@@ -12,6 +12,10 @@ from selenium.common.exceptions import TimeoutException
 from dotenv import load_dotenv
 load_dotenv()
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session
+from db_map import Base, ActiveSearch, SearchLog
+
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -52,6 +56,15 @@ sheet = authorize_spreadsheets_api()
 PROCESSING_SPREADSHEET_ID = os.environ['PROCESSING_SPREADSHEET_ID']
 LOGGING_SPREADSHEET_ID = os.environ['LOGGING_SPREADSHEET_ID']
 PROCESSING_SPSH_DATA_RANGE = 'A2:C'
+
+# db settings
+db_filename = os.getenv('DB_FILENAME')
+db_engine = create_engine(f'sqlite:///{db_filename}', echo=True)
+if not os.path.exists(f'{db_filename}'):
+    Base.metadata.create_all(db_engine)
+session_factory = sessionmaker(bind=db_engine)
+db_session = scoped_session(session_factory)
+
 
 # bot settings
 bot = Bot(token=os.environ['TG_BOT_TOKEN'])
@@ -242,6 +255,7 @@ async def remove_search_from_spreadsheet_hunter(string_number):
         body=body).execute()
     return
 
+
 # Bot
 @dispatcher.errors_handler()
 async def errors_handler(update, exception):
@@ -277,49 +291,41 @@ async def send_help(message: types.Message, state: FSMContext):
 @dispatcher.message_handler(state='*', commands=['cancel'])
 async def cancel_handler(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
-    search_check = await check_for_existing_search(str(message.chat.id))
+    search_check = await check_for_existing_search(int(message.chat.id))
     if not search_check:
         await message.answer('Поиск еще не запущен, начни новый /start_search')
     else:
-        await remove_search_from_spreadsheet_bot(str(message.chat.id))
+        await remove_search_from_spreadsheet_bot(int(message.chat.id))
         await message.answer('Поиск отменен. Начни новый поиск командой /start_search')
 
     if current_state is not None:
         await state.set_state(None)
 
 async def remove_search_from_spreadsheet_bot(chat_id):
-    searches = await download_spreadsheet_data(PROCESSING_SPREADSHEET_ID, PROCESSING_SPSH_DATA_RANGE)
-    value_input_option = 'RAW'
-    for string_number, search in enumerate(searches):
-        if chat_id in search:
-            string_number = string_number + 2
-            body = {
-                'ranges': [f'A{string_number}:C{string_number}']
-            }
-            sheet.values().batchClear(spreadsheetId=PROCESSING_SPREADSHEET_ID, 
-                body=body).execute()
-            return
+    session = db_session()
+    session.query(ActiveSearch).filter_by(chat_id=chat_id).delete()
+    session.commit()
+    session.close()
 
 @dispatcher.message_handler(state='*', commands=['start_search'])
 async def start_search(message: types.Message):
-    search_check = await check_for_existing_search(str(message.chat.id))
+    search_check = await check_for_existing_search(int(message.chat.id))
     if search_check:
         text = 'Поиск уже запущен, ты можешь остановить его, если нужен новый (/cancel)'
         await message.answer(text)
         return
-    
     text = '''
     Ожидаю ссылку на расписание, пример:
     https://pass.rzd.ru/tickets/public/ru?layer_name=e3-route...
     '''
-    await Form.typing_url_and_numbers.set()
+    await Form.typing_url.set()
     await message.answer(text)
 
 async def check_for_existing_search(chat_id):
-    searches = await download_spreadsheet_data(PROCESSING_SPREADSHEET_ID, PROCESSING_SPSH_DATA_RANGE)
-    for search in searches:
-        if chat_id in search:
-            return True
+    session = db_session()
+    if session.query(ActiveSearch).filter_by(chat_id=chat_id).first():
+        session.close()
+        return True
 
 @dispatcher.message_handler(state=Form.typing_url)
 async def get_url(message: types.Message, state: FSMContext):
@@ -331,8 +337,7 @@ async def get_url(message: types.Message, state: FSMContext):
     column = 'url'
     await update_db(chat_id, column, url)
     text = '''
-    Хорошо, теперь отправь мне номера поездов, на которых ты хочешь поехать. Их нужно разделить запятой и пробелом, например:
-    00032, 002А, Е*100
+    Хорошо, теперь отправь мне номера поездов, на которых ты хочешь поехать. Их нужно разделить запятой и пробелом, например:\n00032, 002А, Е*100
     '''
     await Form.next()
     await message.answer(text)
@@ -343,68 +348,57 @@ async def get_numbers(message: types.Message, state: FSMContext):
     chat_id = message.chat.id
     column = 'train_numbers'
     await update_db(chat_id, column, train_numbers)
-    text = 'Отлично, теперь отправь мне ограничение на цену билетов. Числом без запятых и пробелов, например:\n5250\nЕсли цена не важна, отправь 0'
+    text = 'Отлично, теперь отправь мне ограничение на цену билетов. Целым числом: без копеек, запятых и пробелов, например:\n5250\nЕсли цена не важна, отправь 0'
     await Form.next()
     await message.answer(text)
 
 @dispatcher.message_handler(state=Form.choosing_limit)
 async def get_limit(message: types.Message, state: FSMContext):
-    price_limit = int(message.text)    chat_id = message.chat.id
+    try:
+        price_limit = int(message.text)
+    except ValueError:
+        await message.answer('Неверное число. Цена должна быть в виде ОДНОГО целого числа, без лишних знаков препинания, пробелов и т.д. Например:\n1070')
+        return
+    chat_id = message.chat.id
     column = 'price_limit'
     await update_db(chat_id, column, price_limit)
     text = 'Пойду искать места, если захочешь отменить поиск нажми /cancel'
     await Form.next()
     await message.answer(text)
 
+async def update_db(chat_id, column, value):
+    session = db_session()
+    user_search = session.query(ActiveSearch).filter_by(chat_id=chat_id).first()
+    if not user_search:
+        user_search = ActiveSearch(chat_id=chat_id, query_time=datetime.datetime.now())
+    updated_search = update_search(user_search, column, value)
+    if column == 'price_limit':
+        log_search = SearchLog(
+            chat_id = updated_search.chat_id,
+            url = updated_search.url,
+            train_numbers = updated_search.train_numbers,
+            price_limit = updated_search.price_limit,
+            query_time = updated_search.query_time,
+        )
+        session.add(log_search)
+    session.add(updated_search)
+    session.commit()
+    session.close()
 
-
-async def update_spreadsheets(url, train_numbers, chat_id):
-    logging_empty_string = await get_logging_empty_string_number()
-    processing_empty_string = await get_processing_empty_string_number()
-    logging_spsh_range = f'A{logging_empty_string}'
-    processing_spsh_range = f'A{processing_empty_string}'
-    value_input_option = 'RAW'
-    body = {
-        'values': [[url, train_numbers, str(chat_id)]]
-    }
-    sheet.values().update(spreadsheetId=LOGGING_SPREADSHEET_ID, 
-        valueInputOption=value_input_option, range=logging_spsh_range, 
-        body=body).execute()
-    sheet.values().update(spreadsheetId=PROCESSING_SPREADSHEET_ID, 
-        valueInputOption=value_input_option, range=processing_spsh_range, 
-        body=body).execute()
-
-    await update_logging_number(logging_empty_string)
-
-async def get_logging_empty_string_number():
-    data_range = 'D2:D2'
-    data = await download_spreadsheet_data(LOGGING_SPREADSHEET_ID, data_range)
-    empty_string_number = int(data[0][0])
-    return empty_string_number
-
-async def get_processing_empty_string_number():
-    data_range = 'A2:C'
-    data = await download_spreadsheet_data(PROCESSING_SPREADSHEET_ID, data_range)
-    empty_string_number = len(data) + 2
-    if not data:
-        return empty_string_number
-    for string_number, string in enumerate(data):
-        if not string:
-            empty_string_number = string_number + 2
-            return empty_string_number
-
-async def update_logging_number(logging_empty_string):
-    body = {
-        'values': [[str(logging_empty_string + 1)]]
-    }
-    sheet.values().update(spreadsheetId=LOGGING_SPREADSHEET_ID, 
-        valueInputOption='RAW', range='D2', 
-        body=body).execute()
+def update_search(user_search, column, value):
+    if column == 'url':
+        user_search.url = value
+    if column == 'train_numbers':
+        user_search.train_numbers = value
+    if column == 'price_limit':
+        user_search.price_limit = value
+    return user_search
 
 @dispatcher.message_handler(state='*')
 async def answer_searching(message: types.Message, state: FSMContext):
     text = 'Я бот. Общаюсь на языке команд:\n/help - помощь\n/start_search - начать поиск\n/cancel - отменить поиск😔'
     await message.answer(text)
+
 
 if __name__ == '__main__':
     logging.config.dictConfig(config.LOGGER_CONFIG)
