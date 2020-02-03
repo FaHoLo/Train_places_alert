@@ -7,6 +7,7 @@ import asyncio
 import datetime
 import logging
 import logging.config
+from itertools import product
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -151,7 +152,6 @@ async def collect_trains(data):
 
 async def check_for_wrong_train_numbers(train_numbers, trains_with_places, trains_that_gone, trains_without_places):
     status = 'Not found'
-    # TODO add itertools.product here instead double breaks and cycles
     for train_number in train_numbers:
         for train in trains_with_places:
             if train_number in train:
@@ -170,19 +170,20 @@ async def check_for_wrong_train_numbers(train_numbers, trains_with_places, train
                 status = 'Found'
                 break
     if status == 'Not found':
+        if len(train_numbers) == 1:
+            return 'Неверный номер поезда, не нашел его в списка на эту дату. Прочитай /help и начни новый поиск'
         return 'Неверные номера поездов, не нашел ни одного на эту дату. Прочитай /help и начни новый поиск'
 
 async def check_for_places(train_numbers, trains_with_places, price_limit):
     time_pattern = r'route_time\">\d{1,2}:\d{2}'
-    for train_data in trains_with_places:
-        for train_number in train_numbers:
-            if train_number not in train_data:
-                continue
-            time = re.search(time_pattern, train_data)[0][-5:]
-            if price_limit == 1:
-                return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
-            if check_for_satisfying_price(train_data, price_limit):
-                return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
+    for train_data, train_number in product(trains_with_places, train_numbers):
+        if train_number not in train_data:
+            continue
+        time = re.search(time_pattern, train_data)[0][-5:]
+        if price_limit == 1:
+            return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
+        if check_for_satisfying_price(train_data, price_limit):
+            return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
 
 def check_for_satisfying_price(train_data, price_limit):
     soup = BeautifulSoup(train_data, 'html.parser')
@@ -194,14 +195,12 @@ def check_for_satisfying_price(train_data, price_limit):
             return True
 
 async def check_for_all_gone(train_numbers, trains_that_gone):
-    number_of_tn = len(train_numbers)
     gone_trains = []
-    for train in trains_that_gone:
-        for train_number in train_numbers:
-            if train_number not in train: 
-                continue
-            gone_trains.append(train_number)
-    if len(gone_trains) == number_of_tn:
+    for train, train_number in product(trains_that_gone, train_numbers)
+        if train_number not in train: 
+            continue
+        gone_trains.append(train_number)
+    if len(gone_trains) == len(train_numbers):
         return 'Места не появились, все поезда ушли 😔'
 
 
