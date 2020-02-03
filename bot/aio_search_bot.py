@@ -189,7 +189,6 @@ def check_for_satisfying_price(train_data, price_limit):
     soup = BeautifulSoup(train_data, 'html.parser')
     html_price_pattern = r'\d{1,3},\d{3}|\d{1:3},\d{3},\d{3}'
     for span_price in soup.find_all('span', {'class': 'route-cartype-price-rub'}):
-        print(span_price)
         html_price = re.search(html_price_pattern, str(span_price))[0]
         if int(html_price.replace(',', '')) <= price_limit:
             return True
