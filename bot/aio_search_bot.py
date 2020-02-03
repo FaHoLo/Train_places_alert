@@ -4,6 +4,7 @@ import socket
 import config
 import pickle
 import asyncio
+import datetime
 import logging
 import logging.config
 from bs4 import BeautifulSoup
@@ -16,46 +17,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from db_map import Base, ActiveSearch, SearchLog
 
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from googleapiclient.errors import HttpError
-
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.files import PickleStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-
-def authorize_spreadsheets_api():
-    # Code snippet from: https://developers.google.com/sheets/api/quickstart/python
-    # If modifying these scopes, delete the file token.pickle.
-    scopes = ['https://www.googleapis.com/auth/spreadsheets']
-    creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', scopes)
-            creds = flow.run_local_server(port=0)
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-
-    service = build('sheets', 'v4', credentials=creds)
-    sheet = service.spreadsheets()
-    return sheet
-sheet = authorize_spreadsheets_api()
-
-PROCESSING_SPREADSHEET_ID = os.environ['PROCESSING_SPREADSHEET_ID']
-LOGGING_SPREADSHEET_ID = os.environ['LOGGING_SPREADSHEET_ID']
-PROCESSING_SPSH_DATA_RANGE = 'A2:C'
 
 # db settings
 db_filename = os.getenv('DB_FILENAME')
@@ -215,15 +181,17 @@ async def check_for_places(train_numbers, trains_with_places, price_limit):
             time = re.search(time_pattern, train_data)[0][-5:]
             if price_limit == 1:
                 return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
-            if check_for_satisfying_price(train_data, price_limit)
+            if check_for_satisfying_price(train_data, price_limit):
                 return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
 
 def check_for_satisfying_price(train_data, price_limit):
     soup = BeautifulSoup(train_data, 'html.parser')
-    place_prices = soup.find_all('span', {'class': 'route-cartype-price-rub'})
-    # TODO getp prices from spans with regexp in html price "\xa0" is Sgipace
-    # Maby we need change soup parser
-    return True
+    html_price_pattern = r'\d{1,3},\d{3}|\d{1:3},\d{3},\d{3}'
+    for span_price in soup.find_all('span', {'class': 'route-cartype-price-rub'}):
+        print(span_price)
+        html_price = re.search(html_price_pattern, str(span_price))[0]
+        if int(html_price.replace(',', '')) <= price_limit:
+            return True
 
 async def check_for_all_gone(train_numbers, trains_that_gone):
     number_of_tn = len(train_numbers)
@@ -276,7 +244,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     if not search_check:
         await message.answer('Поиск еще не запущен, начни новый /start_search')
     else:
-        await remove_search_from_spreadsheet_bot(int(message.chat.id))
+        await remove_search_from_spreadsheet(int(message.chat.id))
         await message.answer('Поиск отменен. Начни новый поиск командой /start_search')
 
     if current_state is not None:
