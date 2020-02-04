@@ -304,7 +304,7 @@ async def get_limit(message: types.Message, state: FSMContext):
     try:
         price_limit = int(message.text)
     except ValueError:
-        await message.answer('Неверное число. Цена должна быть в виде ОДНОГО целого числа, без лишних знаков препинания, пробелов и т.д. Например:\n1070\nОтправь 1, если цена неважна.')
+        await message.answer('Неверное число. Цена должна быть в виде ОДНОГО целого числа, без лишних знаков препинания, пробелов и т.д. Например:\n1070\nПопробуй ещё раз\nОтправь 1, если цена неважна.')
         return
     chat_id = message.chat.id
     column = 'price_limit'
