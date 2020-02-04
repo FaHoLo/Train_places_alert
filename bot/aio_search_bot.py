@@ -182,10 +182,10 @@ async def check_for_places(train_numbers, trains_with_places, price_limit):
         time = re.search(time_pattern, train_data)[0][-5:]
         if price_limit == 1:
             return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
-        if check_for_satisfying_price(train_data, price_limit):
+        if await check_for_satisfying_price(train_data, price_limit):
             return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
 
-def check_for_satisfying_price(train_data, price_limit):
+async def check_for_satisfying_price(train_data, price_limit):
     soup = BeautifulSoup(train_data, 'html.parser')
     html_price_pattern = r'\d{1,3},\d{3}|\d{1:3},\d{3},\d{3}'
     for span_price in soup.find_all('span', {'class': 'route-cartype-price-rub'}):
@@ -256,8 +256,7 @@ async def remove_search_from_spreadsheet(chat_id):
 
 @dispatcher.message_handler(state='*', commands=['start_search'])
 async def start_search(message: types.Message):
-    search_check = await check_for_existing_search(int(message.chat.id))
-    if search_check:
+    if await check_for_existing_search(int(message.chat.id)):
         text = 'Поиск уже запущен, ты можешь остановить его, если нужен новый (/cancel)'
         await message.answer(text)
         return
