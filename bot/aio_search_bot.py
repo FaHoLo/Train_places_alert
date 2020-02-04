@@ -195,7 +195,7 @@ def check_for_satisfying_price(train_data, price_limit):
 
 async def check_for_all_gone(train_numbers, trains_that_gone):
     gone_trains = []
-    for train, train_number in product(trains_that_gone, train_numbers)
+    for train, train_number in product(trains_that_gone, train_numbers):
         if train_number not in train: 
             continue
         gone_trains.append(train_number)
