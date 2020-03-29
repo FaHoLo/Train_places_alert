@@ -212,10 +212,10 @@ async def check_for_places(train_numbers, trains_with_places, price_limit):
 
 async def check_for_satisfying_price(train_data, price_limit):
     soup = BeautifulSoup(train_data, 'html.parser')
-    html_price_pattern = rb'\d+(\xc2\xa0\d{3})*(\xc2\xa0\d{3})*'
+    html_price_pattern = rb'\d{1,3},\d{3}'
     for span_price in soup.find_all('span', {'class': 'route-cartype-price-rub'}):
         html_price = re.search(html_price_pattern, str(span_price).encode('UTF-8')).group(0)
-        price = int(html_price.replace(b'\xc2\xa0', b''))
+        price = int(html_price.replace(b',', b''))
         if price <= price_limit:
             return price
 
