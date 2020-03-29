@@ -18,6 +18,9 @@ test_area/
 *.pickle
 *.db
 
+# Logs
+all_collected_logs.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
