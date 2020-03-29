@@ -324,6 +324,7 @@ async def get_url(message: types.Message, state: FSMContext):
         f'tg-{message.chat.id}', 
         {
             'url': url,
+            'id': f'tg-{message.chat.id}',
             'got_url_time': got_url_time
         }
     )
