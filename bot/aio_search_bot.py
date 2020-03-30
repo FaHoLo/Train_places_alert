@@ -364,16 +364,17 @@ async def get_limit(message: types.Message, state: FSMContext):
             'start_search_time': start_search_time
         }
     )
-    update_search_logs(chat_id)
+    logs_key = os.getenv('LOGS_KEY', 'search_logs')
+    update_search_logs(chat_id, logs_key)
 
     text = 'Пойду искать места, если захочешь отменить поиск нажми /cancel'
     await Form.next()
     await message.answer(text)
 
-def update_search_logs(chat_id):
+def update_search_logs(chat_id, logs_key):
     data_of_search = redis_db.hgetall(chat_id)
     dump = json.dumps({key.decode('UTF-8'): value.decode('UTF-8') for key, value in data_of_search.items()})
-    redis_db.rpush('search_logs', dump)
+    redis_db.rpush(logs_key, dump)
 
 @dispatcher.message_handler(state='*')
 async def answer_searching(message: types.Message, state: FSMContext):
