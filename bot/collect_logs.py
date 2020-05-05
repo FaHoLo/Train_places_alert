@@ -22,7 +22,7 @@ def main():
 def download_logs(logs_key, logs_path):
     db_logs = get_logs_from_db(db, logs_key)
     if not db_logs:
-        print('No logs')
+        print('No new logs')
         return
     update_log_file(logs_path, db_logs)
 
