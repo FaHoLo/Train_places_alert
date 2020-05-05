@@ -11,7 +11,6 @@ from textwrap import dedent
 from itertools import product
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -20,6 +19,9 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.redis import RedisStorage2
 
+from redis.exceptions import TimeoutError
+from selenium.common.exceptions import TimeoutException
+from aiogram.utils.exceptions import TerminatedByOtherGetUpdates
 
 # loggers settings
 bot_logger = logging.getLogger('trains_bot_logger')
@@ -82,8 +84,12 @@ async def collect_searches():
     return searches
 
 async def collect_search_keys():
-    db_keys = redis_db.keys()
     keys = []
+    try:
+        db_keys = redis_db.keys()
+    except TimeoutError:
+        await asyncio.sleep(5)
+        return keys
     for key in db_keys:
         if key.startswith(b'tg-') or key.startswith(b'vk-'):
             keys.append(key)
@@ -246,7 +252,8 @@ async def check_for_all_gone(train_numbers, trains_that_gone):
 # Bot
 @dispatcher.errors_handler()
 async def errors_handler(update, exception):
-    bot_logger.error(exception)
+    if type(exception) != TerminatedByOtherGetUpdates 
+        bot_logger.error(exception)
 
 @dispatcher.message_handler(state='*', commands=['start'])
 async def send_welcome(message: types.Message, state: FSMContext):
