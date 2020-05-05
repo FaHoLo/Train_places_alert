@@ -252,7 +252,9 @@ async def check_for_all_gone(train_numbers, trains_that_gone):
 # Bot
 @dispatcher.errors_handler()
 async def errors_handler(update, exception):
-    if type(exception) != TerminatedByOtherGetUpdates 
+    if type(exception) == TerminatedByOtherGetUpdates: 
+        pass
+    else:
         bot_logger.error(exception)
 
 @dispatcher.message_handler(state='*', commands=['start'])
