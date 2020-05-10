@@ -157,33 +157,32 @@ async def collect_trains(data):
 
     soup = BeautifulSoup(data, 'html.parser')
 
-    trains_with_places_div = soup.find_all('div', {'class': 'route-item'})
-    trains_that_gone_div = soup.find_all('div', {'class': 'route-item__train-is-gone'})
-    trains_without_places_div = soup.find_all('div',{'class': 'route-item__train-without-places'})
+    train_with_places_divs = soup.select('div.route-item')
+    train_that_gone_divs = soup.select('div.route-item__train-is-gone')
+    train_without_places_divs = soup.select('div.route-item__train-without-places')
 
     trains_with_places = []
-    for train_div in trains_with_places_div:
-        if train_div in trains_that_gone_div: 
+    for train_div in train_with_places_divs:
+        if train_div in train_that_gone_divs: 
             continue
-        if train_div in trains_without_places_div:
+        if train_div in train_without_places_divs:
             continue
-        trains_with_places.append(str(train_div))
+        trains_with_places.append(train_div)
 
-    trains_that_gone = [str(train_div) for train_div in trains_that_gone_div]
+    trains_that_gone = [str(train_div) for train_div in train_that_gone_divs]
 
     trains_without_places = []
-    for train_div in trains_without_places_div:
-        if train_div in trains_that_gone_div:
+    for train_div in train_without_places_divs:
+        if train_div in train_that_gone_divs:
             continue
         trains_without_places.append(str(train_div))
-
     return trains_with_places, trains_that_gone, trains_without_places
 
 async def check_for_wrong_train_numbers(train_numbers, trains_with_places, trains_that_gone, trains_without_places):
     status = 'Not found'
     for train_number in train_numbers:
         for train in trains_with_places:
-            if train_number in train:
+            if train_number in str(train):
                 status = 'Found'
                 break
         if status == 'Found':
@@ -206,9 +205,9 @@ async def check_for_wrong_train_numbers(train_numbers, trains_with_places, train
 async def check_for_places(train_numbers, trains_with_places, price_limit):
     time_pattern = r'route_time\">\d{1,2}:\d{2}'
     for train_data, train_number in product(trains_with_places, train_numbers):
-        if train_number not in train_data:
+        if train_number not in str(train_data):
             continue
-        time = re.search(time_pattern, train_data)[0][-5:]
+        time = train_data.select_one('span.train-info__route_time').text.strip() # re.search(time_pattern, train_data)[0][-5:]
         if price_limit == 1:
             return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
         price = await check_for_satisfying_price(train_data, price_limit)
@@ -217,15 +216,11 @@ async def check_for_places(train_numbers, trains_with_places, price_limit):
             return f'Нашлись места в поезде {train_number}\nЦена билета: {price} ₽\nОтправление в {time}'
 
 async def check_for_satisfying_price(train_data, price_limit):
-    soup = BeautifulSoup(train_data, 'html.parser')
-    html_price_pattern = rb'\d{1,3}(,\d{3})*(,\d{3})*'
-    # Use next pattern for chromedriver > v80 
-    # html_price_pattern = rb'\d+(\xc2\xa0\d{3})*(\xc2\xa0\d{3})*'
-    for span_price in soup.find_all('span', {'class': 'route-cartype-price-rub'}):
-        html_price = re.search(html_price_pattern, str(span_price).encode('UTF-8')).group(0)
-        # Read previous comment
-        # price = int(html_price.replace(b'\xc2\xa0', b''))
-        price = int(html_price.replace(b',', b''))
+    # Use next pattern for chromedriver > v80
+    # html_spaces_pattern = b'\xc2\xa0'
+    html_spaces_pattern = b','
+    for span_price in train_data.select('span.route-cartype-price-rub'):
+        price = int(span_price.text.strip().encode('UTF-8').replace(html_spaces_pattern, b''))
         if price <= price_limit:
             return price
 
