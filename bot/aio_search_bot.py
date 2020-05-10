@@ -371,7 +371,7 @@ async def get_limit(message: types.Message, state: FSMContext):
     logs_key = os.getenv('LOGS_KEY', 'search_logs')
     update_search_logs(chat_id, logs_key)
 
-    text = 'Пойду искать места. Если захочешь отменить поиск, нажми «/cancel»'
+    text = 'Пойду искать места. Если захочешь отменить поиск, нажми /cancel'
     await Form.next()
     await message.answer(text)
 
