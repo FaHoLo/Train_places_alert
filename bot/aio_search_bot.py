@@ -251,6 +251,7 @@ async def errors_handler(update, exception):
         pass
     else:
         bot_logger.error(exception)
+    return True
 
 @dispatcher.message_handler(state='*', commands=['start'])
 async def send_welcome(message: types.Message, state: FSMContext):
