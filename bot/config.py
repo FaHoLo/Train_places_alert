@@ -1,52 +1,53 @@
-import os
 import logging
+import os
+
 import telegram
 
 
 LOGGER_CONFIG = {
-    'version':1,
-        'handlers':{
-            'tgHandler':{
-                'class':'config.SendToTelegramHandler',
-                'formatter':'mainFormatter',
-            },
-            'default': { 
+    'version': 1,
+    'handlers': {
+        'tgHandler': {
+            'class': 'config.SendToTelegramHandler',
+            'formatter': 'mainFormatter',
+        },
+        'default': {
             'level': 'WARNING',
             'formatter': 'mainFormatter',
             'class': 'logging.StreamHandler',
             'stream': 'ext://sys.stdout',  # Default is stderr
-            },
         },
-        'loggers':{
-            'place_hunter_logger':{
-                'handlers':['tgHandler'],
-                'level':'WARNING',
-            },
-            'trains_bot_logger':{
-                'handlers':['tgHandler'],
-                'level':'WARNING',
-            },
-            '': {  # root logger
+    },
+    'loggers': {
+        'place_hunter_logger': {
+            'handlers': ['tgHandler'],
+            'level': 'WARNING',
+        },
+        'trains_bot_logger': {
+            'handlers': ['tgHandler'],
+            'level': 'WARNING',
+        },
+        '': {  # root logger
             'handlers': ['default'],
             'level': 'WARNING',
             'propagate': False
-            },
         },
-        'formatters':{
-            'mainFormatter':{
-                'format':'%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            }
+    },
+    'formatters': {
+        'mainFormatter': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         }
+    }
 }
 
 
 class SendToTelegramHandler(logging.Handler):
 
     def emit(self, record):
-        log_entry = self.format(record)   
+        log_entry = self.format(record)
         self.send_error_log_to_telegram(log_entry)
 
-    #Code snippet from: https://github.com/python-telegram-bot/python-telegram-bot/issues/768
+    # Code snippet from: https://github.com/python-telegram-bot/python-telegram-bot/issues/768
     def send_error_log_to_telegram(self, text):
         tg_bot_token = os.environ['TG_LOG_BOT_TOKEN']
         chat_id = os.environ['TG_LOG_CHAT_ID']
@@ -60,7 +61,7 @@ class SendToTelegramHandler(logging.Handler):
         while text:
             if len(text) <= message_max_length:
                 parts.append(text)
-                break    
+                break
             part = text[:message_max_length]
             first_lnbr = part.rfind('\n')
             if first_lnbr != -1:

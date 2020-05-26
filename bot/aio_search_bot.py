@@ -1,27 +1,29 @@
-import os
-import re
-import json
-import redis
-import config
 import asyncio
 import datetime
+from itertools import product
+import json
 import logging
 import logging.config
+import os
+# import re
 from textwrap import dedent
-from itertools import product
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from dotenv import load_dotenv
-load_dotenv()
 
 from aiogram import Bot, Dispatcher, executor, types
+from aiogram.contrib.fsm_storage.redis import RedisStorage2
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.contrib.fsm_storage.redis import RedisStorage2
-
-from redis.exceptions import TimeoutError
-from selenium.common.exceptions import TimeoutException
 from aiogram.utils.exceptions import TerminatedByOtherGetUpdates
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+import redis
+from redis.exceptions import TimeoutError
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+
+import config
+
+
+load_dotenv()
 
 # loggers settings
 bot_logger = logging.getLogger('trains_bot_logger')
@@ -37,11 +39,11 @@ redis_db = redis.Redis(
 # bot settings
 bot = Bot(token=os.environ['TG_BOT_TOKEN'])
 dispatcher = Dispatcher(
-    bot=bot, 
+    bot=bot,
     storage=RedisStorage2(
         host=os.environ['DB_HOST'],
         port=os.environ['DB_PORT'],
-        password=os.environ['DB_PASS'] 
+        password=os.environ['DB_PASS']
     ),
 )
 
@@ -50,7 +52,7 @@ class Form(StatesGroup):
     typing_url = State()
     typing_numbers = State()
     choosing_limit = State()
-    searching = State() 
+    searching = State()
 
 
 def main():
@@ -59,6 +61,7 @@ def main():
     process = place_hunt.create_task(start_searching())
     executor.start_polling(dispatcher)
     place_hunt.close()
+
 
 # Hunter
 async def start_searching():
@@ -73,6 +76,7 @@ async def start_searching():
             hunter_logger.exception('')
         await asyncio.sleep(5)
 
+
 async def collect_searches():
     search_keys = await collect_search_keys()
     searches = {}
@@ -82,6 +86,7 @@ async def collect_searches():
             for key, value in redis_db.hgetall(key).items()
         }
     return searches
+
 
 async def collect_search_keys():
     keys = []
@@ -95,15 +100,17 @@ async def collect_search_keys():
             keys.append(key)
     return keys
 
+
 async def search_places(searches):
     for search_id, search_info in searches.items():
-        if search_info.get('price_limit') == None:
+        if search_info.get('price_limit') is None:
             continue
         answer = await check_search(search_info)
         if answer:
             await bot.send_message(chat_id=search_id[3:], text=answer)
             await remove_search_from_db(search_id)
         await asyncio.sleep(5)
+
 
 async def check_search(search):
     train_numbers = search['train_numbers'].split(', ')
@@ -124,6 +131,7 @@ async def check_search(search):
     answer = await check_for_all_gone(train_numbers, trains_that_gone)
     if answer:
         return answer
+
 
 async def make_rzd_request(url):
     # ChromeBrowser (heroku offical supports it), easy guide: https://youtu.be/Ven-pqwk3ec?t=184)
@@ -151,6 +159,7 @@ async def make_rzd_request(url):
     driver.close()
     return data
 
+
 async def collect_trains(data):
     if data.find('за пределами периода') != -1:
         return 'Bad url', None, None
@@ -163,7 +172,7 @@ async def collect_trains(data):
 
     trains_with_places = []
     for train_div in train_with_places_divs:
-        if train_div in train_that_gone_divs: 
+        if train_div in train_that_gone_divs:
             continue
         if train_div in train_without_places_divs:
             continue
@@ -177,6 +186,7 @@ async def collect_trains(data):
             continue
         trains_without_places.append(str(train_div))
     return trains_with_places, trains_that_gone, trains_without_places
+
 
 async def check_for_wrong_train_numbers(train_numbers, trains_with_places, trains_that_gone, trains_without_places):
     status = 'Not found'
@@ -202,18 +212,20 @@ async def check_for_wrong_train_numbers(train_numbers, trains_with_places, train
             return 'Неверный номер поезда, не нашел его в списках на эту дату. Прочитай /help и начни новый поиск'
         return 'Неверные номера поездов, не нашел ни одного в списках на эту дату. Прочитай /help и начни новый поиск'
 
+
 async def check_for_places(train_numbers, trains_with_places, price_limit):
-    time_pattern = r'route_time\">\d{1,2}:\d{2}'
+    # time_pattern = r'route_time\">\d{1,2}:\d{2}'
     for train_data, train_number in product(trains_with_places, train_numbers):
         if train_number not in str(train_data):
             continue
-        time = train_data.select_one('span.train-info__route_time').text.strip() # re.search(time_pattern, train_data)[0][-5:]
+        time = train_data.select_one('span.train-info__route_time').text.strip()  # re.search(time_pattern, train_data)[0][-5:]
         if price_limit == 1:
             return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
         price = await check_for_satisfying_price(train_data, price_limit)
         if price:
             price = await put_spaces_into_price(price)
             return f'Нашлись места в поезде {train_number}\nЦена билета: {price} ₽\nОтправление в {time}'
+
 
 async def check_for_satisfying_price(train_data, price_limit):
     # Use next pattern for chromedriver > v80
@@ -223,6 +235,7 @@ async def check_for_satisfying_price(train_data, price_limit):
         price = int(span_price.text.strip().encode('UTF-8').replace(html_spaces_pattern, b''))
         if price <= price_limit:
             return price
+
 
 async def put_spaces_into_price(price):
     price = str(price)
@@ -234,10 +247,11 @@ async def put_spaces_into_price(price):
     price_parts.reverse()
     return ' '.join(price_parts)
 
+
 async def check_for_all_gone(train_numbers, trains_that_gone):
     gone_trains = []
     for train, train_number in product(trains_that_gone, train_numbers):
-        if train_number not in train: 
+        if train_number not in train:
             continue
         gone_trains.append(train_number)
     if len(gone_trains) == len(train_numbers):
@@ -247,11 +261,12 @@ async def check_for_all_gone(train_numbers, trains_that_gone):
 # Bot
 @dispatcher.errors_handler()
 async def errors_handler(update, exception):
-    if type(exception) == TerminatedByOtherGetUpdates: 
+    if type(exception) == TerminatedByOtherGetUpdates:
         pass
     else:
         bot_logger.error(exception)
     return True
+
 
 @dispatcher.message_handler(state='*', commands=['start'])
 async def send_welcome(message: types.Message, state: FSMContext):
@@ -260,6 +275,7 @@ async def send_welcome(message: types.Message, state: FSMContext):
         await state.finish()
     text = 'Привет! Я бот, проверяю сайт РЖД на появление мест в выбранных поездах. Оповещу тебя, если места появятся или поезда так и уйдут заполненными. Жми /help'
     await message.answer(text)
+
 
 @dispatcher.message_handler(state='*', commands=['help'])
 async def send_help(message: types.Message, state: FSMContext):
@@ -284,6 +300,7 @@ async def send_help(message: types.Message, state: FSMContext):
     await message.answer(first_text, disable_web_page_preview=True)
     await message.answer(second_text, disable_web_page_preview=True)
 
+
 @dispatcher.message_handler(state='*', commands=['cancel'])
 async def cancel_handler(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
@@ -301,8 +318,10 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     if current_state is not None:
         await state.set_state(None)
 
+
 async def remove_search_from_db(chat_id):
     redis_db.delete(chat_id)
+
 
 @dispatcher.message_handler(state='*', commands=['start_search'])
 async def start_search(message: types.Message):
@@ -317,9 +336,11 @@ async def start_search(message: types.Message):
     await Form.typing_url.set()
     await message.answer(text)
 
+
 async def check_for_existing_search(chat_id):
     if redis_db.exists(chat_id):
         return True
+
 
 @dispatcher.message_handler(state=Form.typing_url)
 async def get_url(message: types.Message, state: FSMContext):
@@ -330,7 +351,7 @@ async def get_url(message: types.Message, state: FSMContext):
 
     got_url_time = str(datetime.datetime.now())
     redis_db.hmset(
-        f'tg-{message.chat.id}', 
+        f'tg-{message.chat.id}',
         {
             'url': url,
             'id': f'tg-{message.chat.id}',
@@ -344,6 +365,7 @@ async def get_url(message: types.Message, state: FSMContext):
     await Form.next()
     await message.answer(text)
 
+
 @dispatcher.message_handler(state=Form.typing_numbers)
 async def get_numbers(message: types.Message, state: FSMContext):
     train_numbers = message.text
@@ -352,6 +374,7 @@ async def get_numbers(message: types.Message, state: FSMContext):
     text = 'Отлично, теперь отправь мне ограничение на цену билетов. Целым числом: без копеек, запятых и пробелов, например:\n5250\nЕсли цена не важна, отправь 1'
     await Form.next()
     await message.answer(text)
+
 
 @dispatcher.message_handler(state=Form.choosing_limit)
 async def get_limit(message: types.Message, state: FSMContext):
@@ -363,7 +386,7 @@ async def get_limit(message: types.Message, state: FSMContext):
     chat_id = f'tg-{message.chat.id}'
     start_search_time = str(datetime.datetime.now())
     redis_db.hmset(
-        f'tg-{message.chat.id}', 
+        f'tg-{message.chat.id}',
         {
             'price_limit': price_limit,
             'start_search_time': start_search_time
@@ -376,10 +399,12 @@ async def get_limit(message: types.Message, state: FSMContext):
     await Form.next()
     await message.answer(text)
 
+
 def update_search_logs(chat_id, logs_key):
     data_of_search = redis_db.hgetall(chat_id)
     dump = json.dumps({key.decode('UTF-8'): value.decode('UTF-8') for key, value in data_of_search.items()})
     redis_db.rpush(logs_key, dump)
+
 
 @dispatcher.message_handler(state='*')
 async def answer_searching(message: types.Message, state: FSMContext):
