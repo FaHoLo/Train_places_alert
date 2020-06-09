@@ -136,7 +136,7 @@ async def check_search(search):
 async def make_rzd_request(url):
     # ChromeBrowser (heroku offical supports it), easy guide: https://youtu.be/Ven-pqwk3ec?t=184)
     chrome_options = webdriver.ChromeOptions()
-    # chrome_options.binary_location =  os.environ.get('GOOGLE_CHROME_BIN')
+    chrome_options.binary_location =  os.environ.get('GOOGLE_CHROME_BIN')
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--no-sandbox')
