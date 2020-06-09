@@ -58,8 +58,8 @@ class Form(StatesGroup):
 def main():
     logging.config.dictConfig(config.LOGGER_CONFIG)
     place_hunt = asyncio.get_event_loop()
-    process = place_hunt.create_task(start_searching())
-    executor.start_polling(dispatcher)
+    place_hunt.create_task(start_searching())
+    executor.start_polling(dispatcher, loop=place_hunt)
     place_hunt.close()
 
 
