@@ -47,6 +47,10 @@ dispatcher = Dispatcher(
     ),
 )
 
+# Different patterns for different servers
+DIGIT_GROUPING_SEPARATORS = (b',', b'\xc2\xa0')
+separator = DIGIT_GROUPING_SEPARATORS[0]
+
 
 class Form(StatesGroup):
     typing_url = State()
@@ -228,11 +232,13 @@ async def check_for_places(train_numbers, trains_with_places, price_limit):
 
 
 async def check_for_satisfying_price(train_data, price_limit):
-    # Use next pattern for RUSserver
-    # digit_grouping_separator = b'\xc2\xa0'
-    digit_grouping_separator = b','
+    global separator
     for span_price in train_data.select('span.route-cartype-price-rub'):
-        price = int(span_price.text.strip().encode('UTF-8').replace(digit_grouping_separator, b''))
+        try:
+            price = int(span_price.text.strip().encode('UTF-8').replace(separator, b''))
+        except ValueError:
+            separator = DIGIT_GROUPING_SEPARATORS[1]
+            price = int(span_price.text.strip().encode('UTF-8').replace(separator, b''))
         if price <= price_limit:
             return price
 
