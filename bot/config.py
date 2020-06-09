@@ -1,6 +1,7 @@
 import logging
 import os
 
+from redis import Redis
 import telegram
 
 
@@ -73,3 +74,12 @@ class SendToTelegramHandler(logging.Handler):
 
         for part in parts:
             logger_bot.send_message(chat_id, part)
+
+
+def get_db_connetion():
+    redis_db = Redis(
+        host=os.environ['DB_HOST'],
+        port=os.environ['DB_PORT'],
+        password=os.environ['DB_PASS'],
+    )
+    return redis_db
