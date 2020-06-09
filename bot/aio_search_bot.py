@@ -229,10 +229,10 @@ async def check_for_places(train_numbers, trains_with_places, price_limit):
 
 async def check_for_satisfying_price(train_data, price_limit):
     # Use next pattern for chromedriver > v80
-    # html_spaces_pattern = b'\xc2\xa0'
-    html_spaces_pattern = b','
+    # digit_grouping_separator = b'\xc2\xa0'
+    digit_grouping_separator = b','
     for span_price in train_data.select('span.route-cartype-price-rub'):
-        price = int(span_price.text.strip().encode('UTF-8').replace(html_spaces_pattern, b''))
+        price = int(span_price.text.strip().encode('UTF-8').replace(digit_grouping_separator, b''))
         if price <= price_limit:
             return price
 
