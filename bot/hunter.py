@@ -97,8 +97,7 @@ async def check_search(search):
     if answer:
         return answer
     answer = await check_for_all_gone(train_numbers, trains_that_gone)
-    if answer:
-        return answer
+    return answer
 
 
 async def make_rzd_request(url):
