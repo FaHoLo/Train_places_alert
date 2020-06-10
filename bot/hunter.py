@@ -80,7 +80,10 @@ async def search_places(searches):
 
 
 async def check_search(search):
-    train_numbers = search['train_numbers'].split(', ')
+    train_numbers = [
+        train_number.strip()
+        for train_number in search['train_numbers'].strip().split(', ')
+    ]
     response = await make_rzd_request(search['url'])
     if not response:
         return
