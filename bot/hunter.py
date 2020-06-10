@@ -18,7 +18,7 @@ load_dotenv()
 LOG_BOT = utils.get_logger_bot()
 LOGGER_NAME = 'place_hunter_logger'
 
-redis_db = utils.get_db_connetion()
+redis_db = utils.get_db_connection()
 
 # Different patterns for different servers
 DIGIT_GROUPING_SEPARATORS = (b',', b'\xc2\xa0')

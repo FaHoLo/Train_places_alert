@@ -22,7 +22,7 @@ bot_logger = logging.getLogger('trains_bot_logger')
 log_bot = utils.get_logger_bot()
 LOGGER_NAME = 'trains_bot_logger'
 
-redis_db = utils.get_db_connetion()
+redis_db = utils.get_db_connection()
 
 
 # bot settings

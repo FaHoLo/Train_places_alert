@@ -28,7 +28,7 @@ async def handle_exception(log_bot, logger_name):
     await send_error_log_async_to_telegram(log_bot, log_traceback)
 
 
-def get_db_connetion():
+def get_db_connection():
     global _db_connetion
     if not _db_connetion:
         _db_connetion = Redis(
