@@ -1,1 +1,1 @@
-bot: python3 bot/aio_search_bot.py
+bot: python3 bot/start_bots.py
