@@ -12,18 +12,22 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils.exceptions import TerminatedByOtherGetUpdates
 from dotenv import load_dotenv
 
-import config
+import utils
 
 
 load_dotenv()
 
 bot_logger = logging.getLogger('trains_bot_logger')
 
-redis_db = config.get_db_connetion()
+log_bot = utils.get_logger_bot()
+LOGGER_NAME = 'trains_bot_logger'
+
+redis_db = utils.get_db_connetion()
 
 
 # bot settings
-bot = Bot(token=os.environ['TG_BOT_TOKEN'])
+proxy = os.environ.get('TG_PROXY')
+bot = Bot(token=os.environ['TG_BOT_TOKEN'], proxy=proxy)
 dispatcher = Dispatcher(
     bot=bot,
     storage=RedisStorage2(
@@ -42,16 +46,18 @@ class Form(StatesGroup):
 
 
 def main():
-    logging.config.dictConfig(config.LOGGER_CONFIG)
     executor.start_polling(dispatcher)
 
 
 @dispatcher.errors_handler()
 async def errors_handler(update, exception):
     if type(exception) == TerminatedByOtherGetUpdates:
-        pass
-    else:
-        bot_logger.error(exception)
+        return True
+
+    name = 'train_alert_bot_logger'
+    log_traceback = utils.get_log_traceback(name)
+
+    await utils.send_error_log_async_to_telegram(log_bot, log_traceback)
     return True
 
 
@@ -100,15 +106,11 @@ async def cancel_handler(message: types.Message, state: FSMContext):
         if not await check_for_existing_search(f'tg-{message.chat.id}'):
             await message.answer('Поиск еще не запущен, начни новый /start_search')
         else:
-            await remove_search_from_db(f'tg-{message.chat.id}')
+            await utils.remove_search_from_db(f'tg-{message.chat.id}')
             await message.answer(search_canceld_text)
 
     if current_state is not None:
         await state.set_state(None)
-
-
-async def remove_search_from_db(chat_id):
-    redis_db.delete(chat_id)
 
 
 @dispatcher.message_handler(state='*', commands=['start_search'])

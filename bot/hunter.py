@@ -1,7 +1,5 @@
 import asyncio
 from itertools import product
-import logging
-import logging.config
 import os
 # import re
 
@@ -11,15 +9,16 @@ from redis.exceptions import TimeoutError
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 
-import config
-from bot import bot, remove_search_from_db
+from bot import bot
+import utils
 
 
 load_dotenv()
 
-hunter_logger = logging.getLogger('place_hunter_logger')
+LOG_BOT = utils.get_logger_bot()
+LOGGER_NAME = 'place_hunter_logger'
 
-redis_db = config.get_db_connetion()
+redis_db = utils.get_db_connetion()
 
 # Different patterns for different servers
 DIGIT_GROUPING_SEPARATORS = (b',', b'\xc2\xa0')
@@ -27,7 +26,6 @@ separator = DIGIT_GROUPING_SEPARATORS[0]
 
 
 def main():
-    logging.config.dictConfig(config.LOGGER_CONFIG)
     place_hunt = asyncio.get_event_loop()
     place_hunt.create_task(start_searching())
     place_hunt.close()
@@ -42,7 +40,7 @@ async def start_searching():
                 continue
             await search_places(searches)
         except Exception:
-            hunter_logger.exception('')
+            await utils.handle_exception(LOG_BOT, LOGGER_NAME)
         await asyncio.sleep(5)
 
 
@@ -77,7 +75,7 @@ async def search_places(searches):
         answer = await check_search(search_info)
         if answer:
             await bot.send_message(chat_id=search_id[3:], text=answer)
-            await remove_search_from_db(search_id)
+            await utils.remove_search_from_db(search_id)
         await asyncio.sleep(5)
 
 
@@ -86,6 +84,7 @@ async def check_search(search):
     response = await make_rzd_request(search['url'])
     if not response:
         return
+    await asyncio.sleep(2)
     trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
     if trains_with_places == 'Bad url':
         return 'Битая ссылка. Скорее всего, неверная дата. Прочитай /help и начни новый поиск'
@@ -119,9 +118,10 @@ async def make_rzd_request(url):
         driver.close()
         return
     except Exception:
-        hunter_logger.exception('')
+        await utils.handle_exception(LOG_BOT, LOGGER_NAME)
         driver.close()
         return
+    await asyncio.sleep(2)
     while True:
         data = driver.page_source
         if data.count('Подбираем поезда') < 2:
