@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from redis.exceptions import TimeoutError
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 
 from bot import bot
 import utils
@@ -117,6 +117,20 @@ async def make_rzd_request(url):
     try:
         driver.get(url)
     except TimeoutException:
+        driver.close()
+        return
+    except WebDriverException as ex:
+        if 'DevToolsActivePort file doesn\'t exist' in ex.msg:
+            # Selenium have some unsolvable sht like this:
+            # raise exception_class(message, screen, stacktrace)
+            # selenium.common.exceptions.WebDriverException: Message: unknown error: Chrome failed to start: exited abnormally.
+            # (unknown error: DevToolsActivePort file doesn't exist)
+            # (The process started from chrome location /app/.apt/opt/google/chrome/chrome is no longer running, so ChromeDriver is assuming that Chrome has crashed.)
+            # You don't need it in logs so just print to know, it happend, but you can try to solve it, if they are too often there
+            # print(utils.get_log_traceback(LOGGER_NAME))
+            print('DevToolsActivePort file doesn\'t exist')
+        else:
+            await utils.handle_exception(LOG_BOT, LOGGER_NAME)
         driver.close()
         return
     except Exception:
