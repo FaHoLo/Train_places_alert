@@ -120,6 +120,9 @@ async def make_rzd_request(url):
         driver.close()
         return
     except WebDriverException as ex:
+        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.msg)
+        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.screen)
+        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.stacktrace)
         if 'Chrome failed to start: exited abnormally' in ex.msg:
             # Selenium have some unsolvable sht like this:
             # raise exception_class(message, screen, stacktrace)
