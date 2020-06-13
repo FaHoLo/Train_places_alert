@@ -120,7 +120,7 @@ async def make_rzd_request(url):
         driver.close()
         return
     except WebDriverException as ex:
-        if 'DevToolsActivePort file doesn\'t exist' in ex.msg:
+        if 'Chrome failed to start: exited abnormally' in ex.msg:
             # Selenium have some unsolvable sht like this:
             # raise exception_class(message, screen, stacktrace)
             # selenium.common.exceptions.WebDriverException: Message: unknown error: Chrome failed to start: exited abnormally.
@@ -128,7 +128,7 @@ async def make_rzd_request(url):
             # (The process started from chrome location /app/.apt/opt/google/chrome/chrome is no longer running, so ChromeDriver is assuming that Chrome has crashed.)
             # You don't need it in logs so just print to know, it happend, but you can try to solve it, if they are too often there
             # print(utils.get_log_traceback(LOGGER_NAME))
-            print('DevToolsActivePort file doesn\'t exist')
+            print('Chrome failed to start: exited abnormally')
         else:
             await utils.handle_exception(LOG_BOT, LOGGER_NAME)
         driver.close()
