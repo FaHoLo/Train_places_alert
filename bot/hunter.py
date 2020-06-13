@@ -136,7 +136,10 @@ async def make_rzd_request(url):
             await utils.handle_exception(LOG_BOT, LOGGER_NAME)
         driver.close()
         return
-    except Exception:
+    except Exception as ex:
+        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.msg)
+        # await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.screen)
+        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.stacktrace)
         await utils.handle_exception(LOG_BOT, LOGGER_NAME)
         driver.close()
         return
