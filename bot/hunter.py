@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 from itertools import product
 import os
 # import re
@@ -112,16 +113,16 @@ async def make_rzd_request(url):
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--gpu-disable')
     chrome_options.add_argument('log-level=2')
-    driver = webdriver.Chrome(executable_path=os.environ.get('CHROMEDRIVER_PATH'), options=chrome_options)
-    # driver = webdriver.Firefox(executable_path='C:\Program Files\Mozilla Firefox\geckodriver')
     try:
-        driver.get(url)
-    except TimeoutException:
-        driver.close()
-        return
+        driver_start_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
+        driver = webdriver.Chrome(executable_path=os.environ.get('CHROMEDRIVER_PATH'), options=chrome_options)
+        # driver = webdriver.Firefox(executable_path='C:\Program Files\Mozilla Firefox\geckodriver')
     except WebDriverException as ex:
-        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.msg)
-        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.screen)
+        driver_broked_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
+        delta = driver_broked_time - driver_start_time
+        delta_msg = f'\nBots downtime is {delta.seconds} seconds'
+        text = ex.msg + delta_msg
+        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), text)
         await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.stacktrace)
         if 'Chrome failed to start: exited abnormally' in ex.msg:
             # Selenium have some unsolvable sht like this:
@@ -131,15 +132,24 @@ async def make_rzd_request(url):
             # (The process started from chrome location /app/.apt/opt/google/chrome/chrome is no longer running, so ChromeDriver is assuming that Chrome has crashed.)
             # You don't need it in logs so just print to know, it happend, but you can try to solve it, if they are too often there
             # print(utils.get_log_traceback(LOGGER_NAME))
-            print('Chrome failed to start: exited abnormally')
+            print(f'Chrome failed to start: exited abnormally {delta_msg}')
         else:
             await utils.handle_exception(LOG_BOT, LOGGER_NAME)
         driver.close()
         return
     except Exception as ex:
         await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.msg)
-        # await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.screen)
         await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.stacktrace)
+        driver.close()
+        return
+
+    try:
+        driver.get(url)
+    except TimeoutException:
+        driver.close()
+        return
+    except Exception as ex:
+        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.msg)
         await utils.handle_exception(LOG_BOT, LOGGER_NAME)
         driver.close()
         return
