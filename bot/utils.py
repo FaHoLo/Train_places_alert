@@ -23,8 +23,10 @@ def get_log_traceback(logger_name):
     return exception_text
 
 
-async def handle_exception(log_bot, logger_name):
+async def handle_exception(log_bot, logger_name, text=None):
     log_traceback = get_log_traceback(logger_name)
+    if text:
+        log_traceback += '\n' + text
     await send_error_log_async_to_telegram(log_bot, log_traceback)
 
 

@@ -122,8 +122,6 @@ async def make_rzd_request(url):
         delta = driver_broked_time - driver_start_time
         delta_msg = f'\nBots downtime is {delta.seconds} seconds'
         text = ex.msg + delta_msg
-        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), text)
-        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.stacktrace)
         if 'Chrome failed to start: exited abnormally' in ex.msg:
             # Selenium have some unsolvable sht like this:
             # raise exception_class(message, screen, stacktrace)
@@ -131,15 +129,14 @@ async def make_rzd_request(url):
             # (unknown error: DevToolsActivePort file doesn't exist)
             # (The process started from chrome location /app/.apt/opt/google/chrome/chrome is no longer running, so ChromeDriver is assuming that Chrome has crashed.)
             # You don't need it in logs so just print to know, it happend, but you can try to solve it, if they are too often there
-            # print(utils.get_log_traceback(LOGGER_NAME))
-            print(f'Chrome failed to start: exited abnormally {delta_msg}')
+            # It takes about 1-2 secs from starting of webdriver to its error autodetection and handling
+            print(text)
         else:
-            await utils.handle_exception(LOG_BOT, LOGGER_NAME)
+            await utils.handle_exception(LOG_BOT, LOGGER_NAME, text=delta_msg)
         driver.close()
         return
     except Exception as ex:
-        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.msg)
-        await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.stacktrace)
+        await utils.handle_exception(LOG_BOT, LOGGER_NAME, text=ex.msg)
         driver.close()
         return
 
