@@ -133,11 +133,9 @@ async def make_rzd_request(url):
             print(text)
         else:
             await utils.handle_exception(LOG_BOT, LOGGER_NAME, text=delta_msg)
-        driver.close()
         return
     except Exception as ex:
         await utils.handle_exception(LOG_BOT, LOGGER_NAME, text=ex.msg)
-        driver.close()
         return
 
     try:
