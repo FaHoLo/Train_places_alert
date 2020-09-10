@@ -98,6 +98,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     search_canceld_text = 'Поиск отменен. Можешь начать новый поиск командой /start_search'
 
+    # TODO make refactoring here:
     if current_state == 'Form:typing_url':
         await message.answer(search_canceld_text)
     else:
@@ -184,7 +185,7 @@ async def get_limit(message: types.Message, state: FSMContext):
             'start_search_time': start_search_time
         }
     )
-    logs_key = os.getenv('LOGS_KEY', 'search_logs')
+    logs_key = os.environ.get('LOGS_KEY', 'search_logs')
     update_search_logs(chat_id, logs_key)
 
     text = 'Пойду искать места. Если захочешь отменить поиск, нажми /cancel'
