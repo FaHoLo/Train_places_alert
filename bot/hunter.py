@@ -18,7 +18,6 @@ from itertools import product
 import os
 from textwrap import dedent
 from typing import Optional, Tuple, Union, List
-# import re
 
 from bs4 import BeautifulSoup, Tag
 from dotenv import load_dotenv
@@ -319,6 +318,7 @@ async def check_for_places(train_numbers: List[str], trains_with_places: List[Ta
     If price limit == 1 check is not performed.
 
     For development use in case of broked time selector:
+    import re
     time_pattern = r'route_time\">\d{1,2}:\d{2}'
     time = re.search(time_pattern, train_data)[0][-5:]
 
