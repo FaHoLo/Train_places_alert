@@ -4,6 +4,8 @@
 
 Frontend - телеграм бот.
 
+[Бот в работе](tg://resolve?domain=wait_train_bot)
+
 ### Как установить
 
 1. Python3 должен быть уже установлен.  
