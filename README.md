@@ -4,7 +4,7 @@
 
 Frontend - телеграм бот.
 
-[Бот в работе](tg://resolve?domain=wait_train_bot)
+Бот в работе: [@wait_train_bot](https://t.me/wait_train_bot)
 
 ### Как установить
 
