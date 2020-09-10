@@ -21,6 +21,7 @@ bot_logger = logging.getLogger('trains_bot_logger')
 
 log_bot = utils.get_logger_bot()
 LOGGER_NAME = 'trains_bot_logger'
+# Use it for errors handling with utils.handle_exception(LOGGER_NAME)
 
 redis_db = utils.get_db_connection()
 
