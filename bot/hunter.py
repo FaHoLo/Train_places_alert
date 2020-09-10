@@ -58,14 +58,16 @@ async def collect_searches():
 
 async def collect_search_keys():
     keys = []
-    try:
-        db_keys = redis_db.keys()
-    except TimeoutError:
-        await asyncio.sleep(5)
-        return keys
-    for key in db_keys:
-        if key.startswith(b'tg-') or key.startswith(b'vk-'):
-            keys.append(key)
+    search_patterns = ['tg-*', 'vk-*']
+    for search_pattern in search_patterns:
+        try:
+            # All scan methods returns cursor position and then list of keys: (0, [key1, key2])
+            search_keys = redis_db.scan(0, match=search_pattern, count=10000)[1]
+        except TimeoutError:
+            await asyncio.sleep(5)
+            return keys
+        if search_keys:
+            keys.extend(search_keys)
     return keys
 
 
