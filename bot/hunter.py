@@ -48,10 +48,10 @@ async def start_searching():
 async def collect_searches():
     search_keys = await collect_search_keys()
     searches = {}
-    for key in search_keys:
-        searches[key.decode('UTF-8')] = {
+    for search_key in search_keys:
+        searches[search_key.decode('UTF-8')] = {
             key.decode('UTF-8'): value.decode('UTF-8')
-            for key, value in redis_db.hgetall(key).items()
+            for key, value in redis_db.hgetall(search_key).items()
         }
     return searches
 
