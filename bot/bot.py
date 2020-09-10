@@ -54,10 +54,7 @@ async def errors_handler(update, exception):
     if type(exception) == TerminatedByOtherGetUpdates:
         return True
 
-    name = 'train_alert_bot_logger'
-    log_traceback = utils.get_log_traceback(name)
-
-    await utils.send_error_log_async_to_telegram(log_bot, log_traceback)
+    await utils.handle_exception(log_bot, LOGGER_NAME)
     return True
 
 
