@@ -64,10 +64,11 @@ async def collect_search_keys():
             # All scan methods returns cursor position and then list of keys: (0, [key1, key2])
             search_keys = redis_db.scan(0, match=search_pattern, count=10000)[1]
         except TimeoutError:
-            await asyncio.sleep(5)
+            await asyncio.sleep(2)
             return keys
         if search_keys:
             keys.extend(search_keys)
+        asyncio.sleep(2)
     return keys
 
 
