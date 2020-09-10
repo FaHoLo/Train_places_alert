@@ -1,3 +1,10 @@
+"""Database sqlalchemy mapping module.
+
+Project actually use Redis db, but its data structure looks similar
+to this mapping.
+
+"""
+
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 
