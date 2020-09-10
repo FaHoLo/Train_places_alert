@@ -94,7 +94,8 @@ async def check_search(search):
         return 'Битая ссылка. Скорее всего, неверная дата. Прочитай /help и начни новый поиск'
     if not trains_with_places and not trains_that_gone and not trains_with_places:
         return
-    answer = await check_for_wrong_train_numbers(train_numbers, trains_with_places, trains_that_gone, trains_without_places)
+    answer = await check_for_wrong_train_numbers(train_numbers, trains_with_places,
+                                                 trains_that_gone, trains_without_places)
     if answer:
         return answer
     answer = await check_for_places(train_numbers, trains_with_places, int(search['price_limit']))
@@ -115,7 +116,9 @@ async def make_rzd_request(url):
     chrome_options.add_argument('log-level=2')
     try:
         driver_start_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
-        driver = webdriver.Chrome(executable_path=os.environ.get('CHROMEDRIVER_PATH'), options=chrome_options)
+        driver = webdriver.Chrome(
+            executable_path=os.environ.get('CHROMEDRIVER_PATH'),
+            options=chrome_options)
         # driver = webdriver.Firefox(executable_path='C:\Program Files\Mozilla Firefox\geckodriver')
     except WebDriverException as ex:
         driver_broked_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
@@ -125,11 +128,15 @@ async def make_rzd_request(url):
         if 'Chrome failed to start: exited abnormally' in ex.msg:
             # Selenium have some unsolvable sht like this:
             # raise exception_class(message, screen, stacktrace)
-            # selenium.common.exceptions.WebDriverException: Message: unknown error: Chrome failed to start: exited abnormally.
+            # selenium.common.exceptions.WebDriverException: Message: unknown error: Chrome failed
+            # to start: exited abnormally.
             # (unknown error: DevToolsActivePort file doesn't exist)
-            # (The process started from chrome location /app/.apt/opt/google/chrome/chrome is no longer running, so ChromeDriver is assuming that Chrome has crashed.)
-            # You don't need it in logs so just print to know, it happend, but you can try to solve it, if they are too often there
-            # It takes about 1-2 secs from starting of webdriver to its error autodetection and handling
+            # (The process started from chrome location /app/.apt/opt/google/chrome/chrome is
+            # no longer running, so ChromeDriver is assuming that Chrome has crashed.)
+            # You don't need it in logs so just print to know, it happend, but you can try
+            # to solve it, if they are too often there
+            # It takes about 1-2 secs from starting of webdriver to its error autodetection
+            # and handling
             print(text)
         else:
             await utils.handle_exception(LOG_BOT, LOGGER_NAME, text=delta_msg)
@@ -186,7 +193,8 @@ async def collect_trains(data):
     return trains_with_places, trains_that_gone, trains_without_places
 
 
-async def check_for_wrong_train_numbers(train_numbers, trains_with_places, trains_that_gone, trains_without_places):
+async def check_for_wrong_train_numbers(train_numbers, trains_with_places,
+                                        trains_that_gone, trains_without_places):
     status = 'Not found'
     for train_number in train_numbers:
         for train in trains_with_places:
@@ -216,7 +224,8 @@ async def check_for_places(train_numbers, trains_with_places, price_limit):
     for train_data, train_number in product(trains_with_places, train_numbers):
         if train_number not in str(train_data):
             continue
-        time = train_data.select_one('span.train-info__route_time').text.strip()  # re.search(time_pattern, train_data)[0][-5:]
+        time = train_data.select_one('span.train-info__route_time').text.strip()
+        # re.search(time_pattern, train_data)[0][-5:]
         if price_limit == 1:
             return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
         price = await check_for_satisfying_price(train_data, price_limit)
