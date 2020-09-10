@@ -41,20 +41,20 @@ def get_db_connection():
     return _db_connetion
 
 
-def split_text_on_parts(text, message_max_length):
+def split_text_on_parts(text: str, part_max_length: int) -> List[str]:
     parts = []
     while text:
-        if len(text) <= message_max_length:
+        if len(text) <= part_max_length:
             parts.append(text)
             break
-        part = text[:message_max_length]
+        part = text[:part_max_length]
         first_lnbr = part.rfind('\n')
         if first_lnbr != -1:
             parts.append(part[:first_lnbr])
             text = text[first_lnbr+1:]
         else:
             parts.append(part)
-            text = text[message_max_length:]
+            text = text[part_max_length:]
     return parts
 
 
