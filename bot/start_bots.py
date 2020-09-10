@@ -1,3 +1,10 @@
+"""Start telegram and place hunter bots asynchronously.
+
+Both bots needs environment variables, you can find them out
+in bot.py and hunter.py.
+
+"""
+
 import asyncio
 from dotenv import load_dotenv
 
@@ -6,6 +13,7 @@ from bot import dispatcher, executor
 
 
 def main():
+    """Start telegram and place hunter bots asynchronously."""
     load_dotenv()
     place_hunt = asyncio.get_event_loop()
     place_hunt.create_task(start_searching())
