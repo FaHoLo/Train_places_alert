@@ -17,7 +17,7 @@ import datetime
 from itertools import product
 import os
 from textwrap import dedent
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Tuple, List, Callable, Awaitable
 
 from bs4 import BeautifulSoup, Tag
 from dotenv import load_dotenv
@@ -131,25 +131,32 @@ async def check_search(search: dict) -> Optional[str]:
     response = await make_rzd_request(search['url'])
     if not response:
         return None
-    if 'за пределами периода' in response or 'Необходимо ввести маршрут' in response:
+    way_not_chosed = BeautifulSoup(response, 'lxml').select_one('.row .j-trains-box .message')
+    if 'за пределами периода' in response or way_not_chosed:
         return 'Битая ссылка. Скорее всего неверная дата или не выбран маршрут. Прочитай /help и начни новый поиск.'
     await asyncio.sleep(2)
-    trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
 
+    trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
     if not trains_with_places and not trains_that_gone and not trains_with_places:
         return None
+    for check in get_search_checks():
+        status, answer = await check(
+            train_numbers=train_numbers, price_limit=int(search['price_limit']),
+            trains_with_places=trains_with_places, trains_that_gone=trains_that_gone,
+            trains_without_places=trains_without_places)
+        if status:
+            return answer
+    return None
 
-    # TODO Its anti-pattern here, change it
-    answer = await check_for_wrong_train_numbers(
-        train_numbers, trains_with_places, trains_that_gone, trains_without_places)  # type: ignore
-    if answer:
-        return answer
-    answer = await check_for_places(
-        train_numbers, trains_with_places, int(search['price_limit']))  # type: ignore
-    if answer:
-        return answer
-    answer = await check_for_all_gone(train_numbers, trains_that_gone)  # type: ignore
-    return answer
+
+def get_search_checks() -> Tuple[Callable[..., Awaitable[Tuple[bool, str]]]]:
+    """Get train checks."""
+    checks = (
+        check_for_wrong_train_numbers,
+        check_for_places,
+        check_for_all_gone
+    )
+    return checks  # type: ignore # mypy demands too much coz all callbacks have different args
 
 
 async def make_rzd_request(url) -> Optional[str]:
