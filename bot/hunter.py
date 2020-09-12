@@ -300,7 +300,7 @@ async def check_for_wrong_train_numbers(
 
 
 async def check_for_places(train_numbers: List[str], trains_with_places: List[Tag],
-                           price_limit: int) -> Optional[str]:
+                           price_limit: int, **kwargs) -> Tuple[bool, str]:
     r"""Check trains for vacant places with price limit.
 
     If price limit == 1 check is not performed.
@@ -319,21 +319,24 @@ async def check_for_places(train_numbers: List[str], trains_with_places: List[Ta
     Returns:
         Answer: Answer about finding suitable places.
     """
+    status, answer = False, ''
     for train_data, train_number in product(trains_with_places, train_numbers):
         if train_number not in str(train_data):
             continue
+        status = True
         time = train_data.select_one('span.train-info__route_time').text.strip()
         if price_limit == 1:
-            return f'Нашлись места в поезде {train_number}\nОтправление в {time}'
+            answer = f'Нашлись места в поезде {train_number}\nОтправление в {time}'
         price = await check_for_satisfying_price(train_data, price_limit)
         if price:
             spaced_price = await put_spaces_into_price(price)
-            return dedent(f'''\
+            answer = dedent(f'''\
             Нашлись места в поезде {train_number}
             Цена билета: {spaced_price} ₽
             Отправление в {time}
             ''')
-    return None
+        break
+    return status, answer
 
 
 async def check_for_satisfying_price(train_data: Tag, price_limit: int) -> Optional[int]:
