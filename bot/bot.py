@@ -284,13 +284,15 @@ def update_search_logs(chat_id, logs_key):
         logs_key: Db key for log list.
     """
     data_of_search = redis_db.hgetall(chat_id)
-    dump = json.dumps({key.decode('UTF-8'): value.decode('UTF-8') for key, value in data_of_search.items()})
+    dump = json.dumps({
+        key.decode('UTF-8'): value.decode('UTF-8') for key, value in data_of_search.items()
+    })
     redis_db.rpush(logs_key, dump)
 
 
 @dispatcher.message_handler(state='*')
 async def answer_searching(message: types.Message, state: FSMContext):
-    """All not predicted messages handler. Sends little help ti user.
+    """All not predicted messages handler. Sends little help to user.
 
     Args:
         message: Message from user.
