@@ -267,9 +267,11 @@ async def collect_trains(data: str) -> Tuple[List[Tag], List[str], List[str]]:
 
 async def check_for_wrong_train_numbers(
             train_numbers: List[str], trains_with_places: List[Tag],
-            trains_that_gone: List[str], trains_without_places: List[str]
-        ) -> Optional[str]:
+            trains_that_gone: List[str], trains_without_places: List[str],
+        **kwargs) -> Tuple[bool, str]:
     """Check train numbers for collected trains entry.
+
+    Check is passed if at least one train number found on page.
 
     Args:
         train_numbers: Train numbers from user search.
@@ -281,29 +283,21 @@ async def check_for_wrong_train_numbers(
     Returns:
         answer: Answer about bad train numbers.
     """
-    status = 'Not found'
+    status = False
+    answer = ''
+    all_trains_data = str(trains_with_places) + ''.join(trains_that_gone) \
+        + ''.join(trains_without_places)
     for train_number in train_numbers:
-        for train in trains_with_places:
-            if train_number in str(train):
-                status = 'Found'
-                break
-        if status == 'Found':
+        if train_number in all_trains_data:
+            status = True
             break
-        for train in trains_that_gone:
-            if train_number in train:
-                status = 'Found'
-                break
-        if status == 'Found':
-            break
-        for train in trains_without_places:
-            if train_number in train:
-                status = 'Found'
-                break
-    if status == 'Not found':
+    if status:
         if len(train_numbers) == 1:
-            return 'Неверный номер поезда, не нашел его в списках на эту дату. Прочитай /help и начни новый поиск'
-        return 'Неверные номера поездов, не нашел ни одного в списках на эту дату. Прочитай /help и начни новый поиск'
-    return None
+            answer = 'Неверный номер поезда, не нашел его в списках на эту дату.'
+        else:
+            answer = 'Неверные номера поездов, не нашел ни одного в списках на эту дату.'
+        answer += ' Прочитай /help и начни новый поиск.'
+    return status, answer
 
 
 async def check_for_places(train_numbers: List[str], trains_with_places: List[Tag],
