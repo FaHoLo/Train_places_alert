@@ -232,8 +232,8 @@ async def get_numbers(message: types.Message, state: FSMContext):
         message: Message from user.
         state: User state in conversation.
     """
-    train_numbers = message.text
-    redis_db.hset(f'tg-{message.chat.id}', 'train_numbers', train_numbers)
+    train_numbers = utils.parse_train_numbers(message.text)
+    redis_db.hset(f'tg-{message.chat.id}', 'train_numbers', ','.join(train_numbers))
 
     text = 'Отлично, теперь отправь мне ограничение на цену билетов. Целым числом: без копеек, запятых и пробелов, например:\n5250\nЕсли цена не важна, отправь 1'
     await Form.next()

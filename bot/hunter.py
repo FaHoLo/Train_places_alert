@@ -124,21 +124,19 @@ async def check_search(search: dict) -> Optional[str]:
     Returns:
         answer: Answer to send to user.
     """
-    train_numbers = [
-        train_number.strip()
-        for train_number in search['train_numbers'].strip().split(', ')
-    ]
     response = await make_rzd_request(search['url'])
     if not response:
         return None
     way_not_chosed = BeautifulSoup(response, 'lxml').select_one('.row .j-trains-box .message')
     if 'за пределами периода' in response or way_not_chosed:
         return 'Битая ссылка. Скорее всего неверная дата или не выбран маршрут. Прочитай /help и начни новый поиск.'
-    await asyncio.sleep(2)
+    await asyncio.sleep(1)
 
     trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
     if not trains_with_places and not trains_that_gone and not trains_with_places:
         return None
+
+    train_numbers = [train_number for train_number in search['train_numbers'].split(',')]
     for check in get_search_checks():
         status, answer = await check(
             train_numbers=train_numbers, price_limit=int(search['price_limit']),

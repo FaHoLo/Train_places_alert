@@ -136,3 +136,24 @@ async def send_error_log_async_to_telegram(logger_bot: Bot, text: str) -> None:
     parts = split_text_on_parts(text, message_max_length)
     for part in parts:
         await logger_bot.send_message(chat_id, part)
+
+
+def parse_train_numbers(train_numbers: str) -> List[str]:
+    """Parse train numbers.
+
+    Args:
+        train_numbers: Not parsed train numbers from db.
+
+    Returns:
+        parsed_numbers: Parsed train numbers.
+    """
+    parsed_numbers = [
+        train_number.strip()
+        for train_number in train_numbers.split(',')
+    ]
+    # Sometimes rzd.ru changing train numbers from "135*C" to "135C" nearly 5 minutes
+    # before train departure, so we need to check both variants.
+    for train_number in parsed_numbers.copy():
+        if '*' in train_number:
+            parsed_numbers.append(train_number.replace('*', ''))
+    return parsed_numbers
