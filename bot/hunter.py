@@ -283,13 +283,12 @@ async def check_for_wrong_train_numbers(
     Returns:
         answer: Answer about bad train numbers.
     """
-    status = False
-    answer = ''
+    status, answer = True, ''
     all_trains_data = str(trains_with_places) + ''.join(trains_that_gone) \
         + ''.join(trains_without_places)
     for train_number in train_numbers:
         if train_number in all_trains_data:
-            status = True
+            status = False
             break
     if status:
         if len(train_numbers) == 1:
