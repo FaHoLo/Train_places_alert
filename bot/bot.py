@@ -23,7 +23,6 @@ import json
 import logging
 import logging.config
 import os
-from textwrap import dedent
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.redis import RedisStorage2
