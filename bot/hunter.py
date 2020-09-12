@@ -381,8 +381,8 @@ async def put_spaces_into_price(price: int) -> str:
     return new_price
 
 
-async def check_for_all_gone(train_numbers: List[str],
-                             trains_that_gone: List[str]) -> Optional[str]:
+async def check_for_all_gone(train_numbers: List[str], trains_that_gone: List[str],
+                             **kwargs) -> Tuple[bool, str]:
     """Check train numbers for entry in gone trains.
 
     Args:
@@ -392,14 +392,16 @@ async def check_for_all_gone(train_numbers: List[str],
     Returns:
         answer: Answer about the departure of all searched trains.
     """
+    status, answer = False, ''
     gone_trains = []
     for train, train_number in product(trains_that_gone, train_numbers):
         if train_number not in train:
             continue
         gone_trains.append(train_number)
     if len(gone_trains) == len(train_numbers):
-        return 'Места не появились, все поезда ушли 😔'
-    return None
+        status = True
+        answer = 'Места не появились, все поезда ушли 😔'
+    return status, answer
 
 
 if __name__ == "__main__":
