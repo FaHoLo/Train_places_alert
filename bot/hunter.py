@@ -26,6 +26,7 @@ from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
 from bot import bot
+import phrases
 import utils
 
 
@@ -299,10 +300,9 @@ async def check_for_wrong_train_numbers(
             break
     if status:
         if len(train_numbers) == 1:
-            answer = 'Неверный номер поезда, не нашел его в списках на эту дату.'
+            answer = phrases.bad_train_number
         else:
-            answer = 'Неверные номера поездов, не нашел ни одного в списках на эту дату.'
-        answer += ' Прочитай /help и начни новый поиск.'
+            answer = phrases.bad_train_numbers
     return status, answer
 
 
@@ -333,15 +333,13 @@ async def check_for_places(train_numbers: List[str], trains_with_places: List[Ta
         status = True
         time = train_data.select_one('span.train-info__route_time').text.strip()
         if price_limit == 1:
-            answer = f'Нашлись места в поезде {train_number}\nОтправление в {time}'
+            answer = phrases.place_found.format(train_number=train_number, time=time)
         price = await check_for_satisfying_price(train_data, price_limit)
         if price:
             spaced_price = await put_spaces_into_price(price)
-            answer = dedent(f'''\
-            Нашлись места в поезде {train_number}
-            Цена билета: {spaced_price} ₽
-            Отправление в {time}
-            ''')
+            answer = phrases.place_found_with_price.format(
+                train_number=train_number, time=time,
+                spaced_price=spaced_price)
         break
     return status, answer
 
@@ -407,7 +405,7 @@ async def check_for_all_gone(train_numbers: List[str], trains_that_gone: List[st
         gone_trains.append(train_number)
     if len(gone_trains) == len(train_numbers):
         status = True
-        answer = 'Места не появились, все поезда ушли 😔'
+        answer = phrases.all_trains_gone
     return status, answer
 
 
