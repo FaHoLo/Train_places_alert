@@ -241,7 +241,7 @@ async def collect_trains(data: str) -> Tuple[List[Tag], List[str], List[str]]:
         trains_that_gone: Trains that gone.
         trains_without_places: Trains without vacant places.
     """
-    soup = BeautifulSoup(data, 'html.parser')
+    soup = BeautifulSoup(data, 'lxml')
 
     train_with_places_divs = soup.select('div.route-item')
     train_that_gone_divs = soup.select('div.route-item__train-is-gone')
