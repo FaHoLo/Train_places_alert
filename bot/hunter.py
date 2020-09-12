@@ -132,7 +132,7 @@ async def check_search(search: dict) -> Optional[str]:
         return phrases.bad_date_or_route
     if 'за пределами периода' in response:
         return phrases.all_trains_gone
-    await asyncio.sleep(1)
+    await asyncio.sleep(0)
 
     trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
     if not trains_with_places and not trains_that_gone and not trains_with_places:
@@ -146,6 +146,7 @@ async def check_search(search: dict) -> Optional[str]:
             trains_without_places=trains_without_places)
         if status:
             return answer
+        asyncio.sleep(0)
     return None
 
 
