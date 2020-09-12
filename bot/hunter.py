@@ -40,6 +40,9 @@ redis_db = utils.get_db_connection()
 DIGIT_GROUPING_SEPARATORS = (b',', b'\xc2\xa0')
 separator = DIGIT_GROUPING_SEPARATORS[0]
 
+BAD_DATE = 'за пределами периода'
+TICKET_PURCHASE_LIMIT = '90 дней'
+
 
 def main():
     """Run place hunter."""
@@ -128,9 +131,9 @@ async def check_search(search: dict) -> Optional[str]:
     if not response:
         return None
     way_not_chosed = BeautifulSoup(response, 'lxml').select_one('.row .j-trains-box .message')
-    if way_not_chosed or ('за пределами периода' in response and '90 дней' in response):
+    if way_not_chosed or (BAD_DATE in response and TICKET_PURCHASE_LIMIT in response):
         return phrases.bad_date_or_route
-    if 'за пределами периода' in response:
+    if BAD_DATE in response:
         return phrases.all_trains_gone
     await asyncio.sleep(0)
 
