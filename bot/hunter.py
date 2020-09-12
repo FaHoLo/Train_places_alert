@@ -131,10 +131,11 @@ async def check_search(search: dict) -> Optional[str]:
     response = await make_rzd_request(search['url'])
     if not response:
         return None
+    if 'за пределами периода' in response:
+        return 'Битая ссылка. Скорее всего, неверная дата. Прочитай /help и начни новый поиск'
     await asyncio.sleep(2)
     trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
-    if trains_with_places == 'Bad url':
-        return 'Битая ссылка. Скорее всего, неверная дата. Прочитай /help и начни новый поиск'
+
     if not trains_with_places and not trains_that_gone and not trains_with_places:
         return None
 
@@ -226,9 +227,7 @@ async def make_rzd_request(url) -> Optional[str]:
     return data
 
 
-async def collect_trains(data: str) -> Union[
-        Tuple[List[Tag], List[str], List[str]],
-        Tuple[str, None, None]]:
+async def collect_trains(data: str) -> Tuple[List[Tag], List[str], List[str]]:
     """Collect all trains type from search page data.
 
     Train types: train with places, train that gone, train without places
@@ -242,10 +241,6 @@ async def collect_trains(data: str) -> Union[
         trains_that_gone: Trains that gone.
         trains_without_places: Trains without vacant places.
     """
-    if data.find('за пределами периода') != -1:
-        # TODO raise error except that weird return
-        return 'Bad url', None, None
-
     soup = BeautifulSoup(data, 'html.parser')
 
     train_with_places_divs = soup.select('div.route-item')
