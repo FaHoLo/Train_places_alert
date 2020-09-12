@@ -149,7 +149,7 @@ async def check_search(search: dict) -> Optional[str]:
             trains_without_places=trains_without_places)
         if status:
             return answer
-        asyncio.sleep(0)
+        await asyncio.sleep(0)
     return None
 
 
