@@ -128,8 +128,10 @@ async def check_search(search: dict) -> Optional[str]:
     if not response:
         return None
     way_not_chosed = BeautifulSoup(response, 'lxml').select_one('.row .j-trains-box .message')
-    if 'за пределами периода' in response or way_not_chosed:
-        return 'Битая ссылка. Скорее всего неверная дата или не выбран маршрут. Прочитай /help и начни новый поиск.'
+    if way_not_chosed or ('за пределами периода' in response and '90 дней' in response):
+        return phrases.bad_date_or_route
+    if 'за пределами периода' in response:
+        return phrases.all_trains_gone
     await asyncio.sleep(1)
 
     trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
