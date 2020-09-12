@@ -131,8 +131,8 @@ async def check_search(search: dict) -> Optional[str]:
     response = await make_rzd_request(search['url'])
     if not response:
         return None
-    if 'за пределами периода' in response:
-        return 'Битая ссылка. Скорее всего, неверная дата. Прочитай /help и начни новый поиск'
+    if 'за пределами периода' in response or 'Необходимо ввести маршрут' in response:
+        return 'Битая ссылка. Скорее всего неверная дата или не выбран маршрут. Прочитай /help и начни новый поиск.'
     await asyncio.sleep(2)
     trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
 
