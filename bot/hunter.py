@@ -24,7 +24,7 @@ from redis.exceptions import TimeoutError
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
-from bot import bot
+from tg_bot import bot
 import phrases
 import utils
 

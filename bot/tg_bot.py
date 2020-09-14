@@ -20,8 +20,6 @@ All handlers except errors_handler returns None value.
 
 import datetime
 import json
-import logging
-import logging.config
 import os
 
 from aiogram import Bot, Dispatcher, executor, types
@@ -37,18 +35,16 @@ import utils
 
 load_dotenv()
 
-bot_logger = logging.getLogger('trains_bot_logger')
-
+# Logger bot
 log_bot = utils.get_logger_bot()
+# Logger name. Use it for errors handling with utils.handle_exception(LOGGER_NAME)
 LOGGER_NAME = 'trains_bot_logger'
-# Use it for errors handling with utils.handle_exception(LOGGER_NAME)
 
+# DB conncetion
 redis_db = utils.get_db_connection()
 
-
 # bot settings
-proxy = os.environ.get('TG_PROXY')
-bot = Bot(token=os.environ['TG_BOT_TOKEN'], proxy=proxy)
+bot = Bot(token=os.environ['TG_BOT_TOKEN'], proxy=os.environ.get('TG_PROXY'))
 dispatcher = Dispatcher(
     bot=bot,
     storage=RedisStorage2(
@@ -59,8 +55,8 @@ dispatcher = Dispatcher(
 )
 
 
-class Form(StatesGroup):
-    """Base states group of conversations with user."""
+class SearchConv(StatesGroup):
+    """Base states group of conversation with user."""
 
     typing_url = State()
     typing_numbers = State()
@@ -132,7 +128,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
 
     # TODO make refactoring here:
-    if current_state == 'Form:typing_url':
+    if current_state == 'SearchConv:typing_url':
         await message.answer(phrases.cancel_msg)
     else:
         if not await check_for_existing_search(f'tg-{message.chat.id}'):
@@ -159,7 +155,7 @@ async def start_search(message: types.Message):
         await message.answer(phrases.second_search)
         return
 
-    await Form.typing_url.set()
+    await SearchConv.typing_url.set()
     await message.answer(phrases.waiting_url)
 
 
@@ -173,7 +169,7 @@ async def check_for_existing_search(chat_id):
         return True
 
 
-@dispatcher.message_handler(state=Form.typing_url)
+@dispatcher.message_handler(state=SearchConv.typing_url)
 async def get_url(message: types.Message, state: FSMContext):
     """Parse search url from user message.
 
@@ -196,11 +192,11 @@ async def get_url(message: types.Message, state: FSMContext):
         }
     )
 
-    await Form.next()
+    await SearchConv.next()
     await message.answer(phrases.waiting_train_numbers)
 
 
-@dispatcher.message_handler(state=Form.typing_numbers)
+@dispatcher.message_handler(state=SearchConv.typing_numbers)
 async def get_numbers(message: types.Message, state: FSMContext):
     """Parse train numbers from user message.
 
@@ -211,11 +207,11 @@ async def get_numbers(message: types.Message, state: FSMContext):
     train_numbers = utils.parse_train_numbers(message.text)
     redis_db.hset(f'tg-{message.chat.id}', 'train_numbers', ','.join(train_numbers))
 
-    await Form.next()
+    await SearchConv.next()
     await message.answer(phrases.waiting_price_limit)
 
 
-@dispatcher.message_handler(state=Form.choosing_limit)
+@dispatcher.message_handler(state=SearchConv.choosing_limit)
 async def get_limit(message: types.Message, state: FSMContext):
     """Parse price limit from user message.
 
@@ -240,7 +236,7 @@ async def get_limit(message: types.Message, state: FSMContext):
     logs_key = os.environ.get('LOGS_KEY', 'search_logs')
     update_search_logs(chat_id, logs_key)
 
-    await Form.next()
+    await SearchConv.next()
     await message.answer(phrases.start_placehunt)
 
 
