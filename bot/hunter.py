@@ -31,17 +31,17 @@ import utils
 
 load_dotenv()
 
-LOG_BOT = utils.get_logger_bot()
+# Logger bot
+log_bot = utils.get_logger_bot()
+# Logger name. Use it for errors handling with utils.handle_exception(LOGGER_NAME)
 LOGGER_NAME = 'place_hunter_logger'
 
+# DB conncetion
 redis_db = utils.get_db_connection()
 
 # Different patterns for different servers
 DIGIT_GROUPING_SEPARATORS = (b',', b'\xc2\xa0')
 separator = DIGIT_GROUPING_SEPARATORS[0]
-
-BAD_DATE = 'за пределами периода'
-TICKET_PURCHASE_LIMIT = '90 дней'
 
 
 def main():
@@ -61,7 +61,7 @@ async def start_searching():
                 continue
             await search_places(searches)
         except Exception:
-            await utils.handle_exception(LOG_BOT, LOGGER_NAME)
+            await utils.handle_exception(log_bot, LOGGER_NAME)
         await asyncio.sleep(5)
 
 
@@ -127,13 +127,18 @@ async def check_search(search: dict) -> Optional[str]:
     Returns:
         answer: Answer to send to user.
     """
+    bad_date_msg = 'за пределами периода'
+    ticket_purchase_limit = '90 дней'
     response = await make_rzd_request(search['url'])
     if not response:
         return None
     way_not_chosed = BeautifulSoup(response, 'lxml').select_one('.row .j-trains-box .message')
-    if way_not_chosed or (BAD_DATE in response and TICKET_PURCHASE_LIMIT in response):
+    # rzd.ru shows bad date message if the date is yesterday date (so all trains
+    # are gone for this search) and bad date msg with ticket purchase limit in other
+    # wrong date cases
+    if way_not_chosed or (bad_date_msg in response and ticket_purchase_limit in response):
         return phrases.bad_date_or_route
-    if BAD_DATE in response:
+    elif bad_date_msg in response:
         return phrases.all_trains_gone
     await asyncio.sleep(0)
 
@@ -172,7 +177,7 @@ async def make_rzd_request(url) -> Optional[str]:
     Returns:
         response: Page data.
     """
-    # ChromeBrowser (heroku offical supports it), easy guide: https://youtu.be/Ven-pqwk3ec?t=184)
+    # ChromeBrowser (heroku offical supports it) easy guide: https://youtu.be/Ven-pqwk3ec?t=184)
     chrome_options = webdriver.ChromeOptions()
     chrome_options.binary_location = os.environ.get('GOOGLE_CHROME_BIN')
     chrome_options.add_argument('--no-sandbox')
@@ -185,7 +190,8 @@ async def make_rzd_request(url) -> Optional[str]:
         driver = webdriver.Chrome(
             executable_path=os.environ.get('CHROMEDRIVER_PATH'),
             options=chrome_options)
-        # driver = webdriver.Firefox(executable_path='C:\Program Files\Mozilla Firefox\geckodriver')
+        # If you want firefox driver use it this way:
+        # driver = webdriver.Firefox(executable_path=os.environ.get('FIREFOX_EXECUTABLE'))
     except WebDriverException as ex:
         driver_broked_time = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
         delta = driver_broked_time - driver_start_time
@@ -205,10 +211,10 @@ async def make_rzd_request(url) -> Optional[str]:
             # and handling
             print(text)
         else:
-            await utils.handle_exception(LOG_BOT, LOGGER_NAME, text=delta_msg)
+            await utils.handle_exception(log_bot, LOGGER_NAME, text=delta_msg)
         return None
     except Exception:
-        await utils.handle_exception(LOG_BOT, LOGGER_NAME)
+        await utils.handle_exception(log_bot, LOGGER_NAME)
         return None
 
     try:
@@ -218,12 +224,12 @@ async def make_rzd_request(url) -> Optional[str]:
         driver.close()
         return None
     except Exception as ex:
-        await utils.handle_exception(LOG_BOT, LOGGER_NAME)
+        await utils.handle_exception(log_bot, LOGGER_NAME)
         driver.close()
 
         try:
             # ex.msg check is here coz sometimes driver dont write it in traceback
-            await LOG_BOT.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.msg)  # type: ignore
+            await log_bot.send_message(os.environ.get('TG_LOG_CHAT_ID'), ex.msg)  # type: ignore
         except Exception:
             pass
         return None
