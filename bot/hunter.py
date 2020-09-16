@@ -78,6 +78,7 @@ async def collect_searches() -> dict:
             key.decode('UTF-8'): value.decode('UTF-8')
             for key, value in redis_db.hgetall(search_key).items()
         }
+        await asyncio.sleep(0)
     return searches
 
 
@@ -266,6 +267,7 @@ async def collect_trains(data: str) -> Tuple[List[Tag], List[str], List[str]]:
 
     trains_with_places = []
     for train_div in train_with_places_divs:
+        await asyncio.sleep(0)
         if train_div in train_that_gone_divs:
             continue
         if train_div in train_without_places_divs:
@@ -276,6 +278,7 @@ async def collect_trains(data: str) -> Tuple[List[Tag], List[str], List[str]]:
 
     trains_without_places = []
     for train_div in train_without_places_divs:
+        await asyncio.sleep(0)
         if train_div in train_that_gone_divs:
             continue
         trains_without_places.append(str(train_div))
@@ -304,6 +307,7 @@ async def check_for_wrong_train_numbers(
     all_trains_data = str(trains_with_places) + ''.join(trains_that_gone) \
         + ''.join(trains_without_places)
     for train_number in train_numbers:
+        await asyncio.sleep(0)
         if train_number in all_trains_data:
             status = False
             break
@@ -337,6 +341,7 @@ async def check_for_places(train_numbers: List[str], trains_with_places: List[Ta
     """
     status, answer = False, ''
     for train_data, train_number in product(trains_with_places, train_numbers):
+        await asyncio.sleep(0)
         if train_number not in str(train_data):
             continue
         status = True
@@ -365,6 +370,7 @@ async def check_for_satisfying_price(train_data: Tag, price_limit: int) -> Optio
     """
     global separator
     for span_price in train_data.select('span.route-cartype-price-rub'):
+        await asyncio.sleep(0)
         try:
             price = int(span_price.text.strip().encode('UTF-8').replace(separator, b''))
         except ValueError:
@@ -409,6 +415,7 @@ async def check_for_all_gone(train_numbers: List[str], trains_that_gone: List[st
     status, answer = False, ''
     gone_trains = []
     for train, train_number in product(trains_that_gone, train_numbers):
+        await asyncio.sleep(0)
         if train_number not in train:
             continue
         gone_trains.append(train_number)

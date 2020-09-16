@@ -8,6 +8,7 @@ Core funcs:
 
 """
 
+import asyncio
 import datetime
 import os
 import traceback
@@ -136,6 +137,7 @@ async def send_error_log_async_to_telegram(logger_bot: Bot, text: str) -> None:
     parts = split_text_on_parts(text, message_max_length)
     for part in parts:
         await logger_bot.send_message(chat_id, part)
+        await asyncio.sleep(0)
 
 
 def parse_train_numbers(train_numbers: str) -> List[str]:
