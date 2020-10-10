@@ -128,45 +128,16 @@ async def check_search(search: dict) -> Optional[str]:
     Returns:
         answer: Answer to send to user. None if there is no places found.
     """
-    bad_date_msg = 'за пределами периода'
-    ticket_purchase_limit = '90 дней'
     response = await make_rzd_request(search['url'])
     if not response:
         return None
-    way_not_chosed = BeautifulSoup(response, 'lxml').select_one('.row .j-trains-box .message')
-    # rzd.ru shows bad date message if the date is yesterday date (so all trains
-    # are gone for this search) and bad date msg with ticket purchase limit in other
-    # wrong date cases
-    if way_not_chosed or (bad_date_msg in response and ticket_purchase_limit in response):
-        return phrases.bad_date_or_route
-    elif bad_date_msg in response:
-        return phrases.all_trains_gone
-    await asyncio.sleep(0)
 
-    trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
-    if not trains_with_places and not trains_that_gone and not trains_with_places:
-        return None
+    answer = await check_for_bad_url(response)
+    if answer:
+        return answer
 
-    train_numbers = [train_number for train_number in search['train_numbers'].split(',')]
-    for check in get_search_checks():
-        status, answer = await check(
-            train_numbers=train_numbers, price_limit=int(search['price_limit']),
-            trains_with_places=trains_with_places, trains_that_gone=trains_that_gone,
-            trains_without_places=trains_without_places)
-        if status:
-            return answer
-        await asyncio.sleep(0)
-    return None
-
-
-def get_search_checks() -> Tuple[Callable[..., Awaitable[Tuple[bool, str]]]]:
-    """Get train checks."""
-    checks = (
-        check_for_wrong_train_numbers,
-        check_for_places,
-        check_for_all_gone
-    )
-    return checks  # type: ignore # mypy demands too much coz all callbacks have different args
+    answer = await check_trains_data(response, search['train_numbers'], search['price_limit'])
+    return answer
 
 
 async def make_rzd_request(url) -> Optional[str]:
@@ -243,6 +214,59 @@ async def make_rzd_request(url) -> Optional[str]:
         await asyncio.sleep(1)
     driver.close()
     return data
+
+
+async def check_for_bad_url(response: str) -> Optional[str]:
+    """Check response for bad url, returns answer if url is bad, None otherwise."""
+    bad_date_msg = 'за пределами периода'
+    ticket_purchase_limit = '90 дней'
+    way_not_chosed = BeautifulSoup(response, 'lxml').select_one('.row .j-trains-box .message')
+    # rzd.ru shows bad date message if the date is yesterday date (so all trains
+    # are gone for this search) and bad date msg with ticket purchase limit in other
+    # wrong date cases
+    if way_not_chosed or (bad_date_msg in response and ticket_purchase_limit in response):
+        return phrases.bad_date_or_route
+    elif bad_date_msg in response:
+        return phrases.all_trains_gone
+    return None
+
+
+async def check_trains_data(response: str, raw_train_numbers: str,
+                            price_limit: str) -> Optional[str]:
+    """Check search url response data for places or mistakes.
+    
+    Args:
+        response: Fetched response.
+        raw_train_numbers: Search train numbers.
+        price_limit: Search price limit.
+    
+    Returns:
+        answer: Check answer. None if all checks passed, so there is no new places found.
+    """
+    trains_with_places, trains_that_gone, trains_without_places = await collect_trains(response)
+    if not trains_with_places and not trains_that_gone and not trains_with_places:
+        return None
+    train_numbers = [train_number for train_number in raw_train_numbers.split(',')]
+
+    for check in get_search_checks():
+        status, answer = await check(
+            train_numbers=train_numbers, price_limit=int(price_limit),
+            trains_with_places=trains_with_places, trains_that_gone=trains_that_gone,
+            trains_without_places=trains_without_places)
+        if status:
+            return answer
+        await asyncio.sleep(0)
+    return None
+
+
+def get_search_checks() -> Tuple[Callable[..., Awaitable[Tuple[bool, str]]]]:
+    """Get train checks."""
+    checks = (
+        check_for_wrong_train_numbers,
+        check_for_places,
+        check_for_all_gone
+    )
+    return checks  # type: ignore # mypy demands too much coz all callbacks have different args
 
 
 async def collect_trains(data: str) -> Tuple[List[Tag], List[str], List[str]]:
