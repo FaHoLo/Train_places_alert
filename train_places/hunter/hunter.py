@@ -372,12 +372,15 @@ async def check_for_places(train_numbers: List[str], trains_with_places: List[Ta
         time = train_data.select_one('span.train-info__route_time').text.strip()
         if price_limit == 1:
             answer = phrases.place_found.format(train_number=train_number, time=time)
+            break
         price = await check_for_satisfying_price(train_data, price_limit)
-        if price:
-            spaced_price = await put_spaces_into_price(price)
-            answer = phrases.place_found_with_price.format(
-                train_number=train_number, time=time,
-                spaced_price=spaced_price)
+        if not price:
+            status = False
+            continue
+        spaced_price = await put_spaces_into_price(price)
+        answer = phrases.place_found_with_price.format(
+            train_number=train_number, time=time,
+            spaced_price=spaced_price)
         break
     return status, answer
 
