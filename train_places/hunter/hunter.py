@@ -286,8 +286,8 @@ async def collect_trains(data: str) -> Tuple[List[Tag], List[str], List[str]]:
 
 
 async def check_for_wrong_train_numbers(
-            train_numbers: List[str], trains_with_places: List[Tag],
-            trains_that_gone: List[str], trains_without_places: List[str],
+        train_numbers: List[str], trains_with_places: List[Tag],
+        trains_that_gone: List[str], trains_without_places: List[str],
         **kwargs) -> Tuple[bool, str]:
     """Check train numbers for collected trains entry.
 
