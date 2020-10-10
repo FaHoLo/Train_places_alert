@@ -1,1 +1,1 @@
-bot: python3 bot/start_bots.py
+bot: python3 -m train_places

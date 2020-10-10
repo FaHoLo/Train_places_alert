@@ -8,8 +8,8 @@ in bot.py and hunter.py.
 import asyncio
 from dotenv import load_dotenv
 
-from tg_bot import dispatcher, executor
-from hunter import start_searching
+from .bots.tg_bot import dispatcher, executor
+from .hunter.hunter import start_searching
 
 
 def main():

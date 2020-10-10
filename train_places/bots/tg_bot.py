@@ -29,8 +29,8 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils.exceptions import TerminatedByOtherGetUpdates
 from dotenv import load_dotenv
 
-import phrases
-import utils
+from train_places.phrases import phrases
+from train_places.utils import utils
 
 
 load_dotenv()
