@@ -126,7 +126,7 @@ async def check_search(search: dict) -> Optional[str]:
         search: User search info.
 
     Returns:
-        answer: Answer to send to user.
+        answer: Answer to send to user. None if there is no places found.
     """
     bad_date_msg = 'за пределами периода'
     ticket_purchase_limit = '90 дней'
