@@ -132,7 +132,7 @@ async def check_search(search: dict) -> Optional[str]:
     if not response:
         return None
 
-    answer = await check_for_bad_url(response)
+    answer = check_for_bad_url(response)
     if answer:
         return answer
 
@@ -216,7 +216,7 @@ async def make_rzd_request(url) -> Optional[str]:
     return data
 
 
-async def check_for_bad_url(response: str) -> Optional[str]:
+def check_for_bad_url(response: str) -> Optional[str]:
     """Check response for bad url, returns answer if url is bad, None otherwise."""
     bad_date_msg = 'за пределами периода'
     ticket_purchase_limit = '90 дней'
