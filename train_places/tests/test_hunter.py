@@ -13,7 +13,6 @@ from train_places.phrases import phrases
 
 
 loop = asyncio.get_event_loop()
-loop.set_debug(True)
 
 path_dir = pathlib.Path(__file__).parent.absolute()
 
